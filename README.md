@@ -3,7 +3,6 @@
 <div align="center">
 
 [![GitHub](https://img.shields.io/badge/GitHub-CVAlyze-blue?logo=github)](https://github.com/me-Afzal/CVAlyze)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Active-success)]()
 
 **End-to-End ETL + AI Candidate Analysis Platform**
