@@ -183,7 +183,6 @@ Protected:     JWT stored in localStorage → Used for API calls
 ### PostgreSQL (User Database)
 - User credentials (hashed passwords)
 - JWT token management
-- Session management
 
 ### BigQuery (Candidate Data Warehouse)
 **Schema:**
@@ -194,7 +193,6 @@ candidates (
   gender, latitude, longitude,
   linkedin, github, website,
   certifications, achievements,
-  created_at, updated_at
 )
 ```
 
@@ -210,8 +208,8 @@ candidates (
 ### Backend Microservices (GCP Kubernetes)
 ```
 cv-gateway          → API Gateway (routing, load balancing)
-user-service        → Authentication & user management
-transform-service   → ETL pipeline & AI extraction
+user_service        → Authentication & user management
+etl_service   → ETL pipeline & AI extraction
 ```
 
 ### Deployment Steps
@@ -220,21 +218,21 @@ transform-service   → ETL pipeline & AI extraction
 ```bash
    docker build -t gcr.io/PROJECT_ID/cv-gateway .
    docker build -t gcr.io/PROJECT_ID/user-service .
-   docker build -t gcr.io/PROJECT_ID/transform-service .
+   docker build -t gcr.io/PROJECT_ID/etl-service .
 ```
 
 2. **Push to Google Container Registry**
 ```bash
    docker push gcr.io/PROJECT_ID/cv-gateway
    docker push gcr.io/PROJECT_ID/user-service
-   docker push gcr.io/PROJECT_ID/transform-service
+   docker push gcr.io/PROJECT_ID/etl-service
 ```
 
 3. **Deploy to GKE**
 ```bash
    kubectl apply -f k8s/gateway-deployment.yaml
    kubectl apply -f k8s/user-service-deployment.yaml
-   kubectl apply -f k8s/transform-service-deployment.yaml
+   kubectl apply -f k8s/etl-service-deployment.yaml
 ```
 
 4. **Configure Ingress**
@@ -244,7 +242,7 @@ transform-service   → ETL pipeline & AI extraction
 
 5. **Secrets Management**
    - Store API keys in GCP Secret Manager
-   - Environment variables: `GEMINI_API_KEY`, `SMTP_PASSWORD`, `GENDERIZE_API_KEY`
+
 
 ### Frontend (Vercel)
 - Automatic deployment from GitHub
@@ -257,8 +255,8 @@ transform-service   → ETL pipeline & AI extraction
 CVAlyze/
 ├── Backend/
 │   ├── gateway/
-│   ├── user-service/
-│   ├── transform-service/
+│   ├── user_service/
+│   ├── etl_service/
 │   ├── k8s/                    # Kubernetes manifests
 │   ├── docs/                   # Backend API documentation
 │   └── README.md               # Backend-specific documentation
@@ -318,43 +316,14 @@ CVAlyze/
 
 ---
 
-## 🔮 Future Enhancements
-
-- [ ] **ML-Based Resume Ranking**: Score candidates automatically
-- [ ] **Advanced Skill Extraction**: LLM-powered competency mapping
-- [ ] **Team Collaboration**: Multi-recruiter dashboard
-- [ ] **Interview Scheduling**: Google Calendar API integration
-- [ ] **Multi-Language Support**: OCR + Translation APIs for international CVs
-- [ ] **Resume Templates**: AI-generated candidate summaries
-- [ ] **ATS Integration**: Connect with existing Applicant Tracking Systems
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
 
 ## 👤 Author
 
 **Afzal**
 
 [![GitHub](https://img.shields.io/badge/GitHub-me--Afzal-black?logo=github)](https://github.com/me-Afzal)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://linkedin.com/in/your-profile)
-[![Email](https://img.shields.io/badge/Email-Contact-red?logo=gmail)](mailto:your.email@example.com)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/afzal-a-0b1962325/)
+[![Email](https://img.shields.io/badge/Email-Contact-red?logo=gmail)](mailto:afzalkottukkal23@gmail.com)
 
 ---
 
