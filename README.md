@@ -255,17 +255,13 @@ CVAlyze/
 ├── Backend/
 │   ├── gateway/
 │   ├── user_service/
-│   ├── etl_service/
-│   ├── k8s/                    # Kubernetes manifests
-│   ├── docs/                   # Backend API documentation
-│   └── README.md               # Backend-specific documentation
+│   ├── etl_service/                  # Backend API documentation
+│   └── README.md    #Backend-specific documentation
 ├── Frontend/
-│   ├── public/
 │   ├── src/
 │   ├── assets/
 │   └── README.md
 ├── .gitignore
-├── LICENSE
 └── README.md                   # This file
 ```
 
