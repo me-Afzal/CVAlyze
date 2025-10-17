@@ -8,9 +8,10 @@ import aiosmtplib
 from datetime import datetime,timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
-from app.preprocess import extract_text, clean_text, get_lat_lon, get_gender
-from app.rag_extractor import CvExtractor
+from app.api.v1.preprocess import extract_text, clean_text, get_lat_lon, get_gender
+from app.api.v1.rag_extractor import CvExtractor
 
 load_dotenv()
 
@@ -140,6 +141,10 @@ async def process_cvs(files):
                      'experience', 'projects', 'certifications', 'achievements']
     # Enriching data
     df = pd.DataFrame(all_cv_data).reindex(columns=expected_cols,fill_value=None)
+
+    # Drop rows where all values are None
+    df = df.dropna(how='all')
+    
     # Add geolocation and gender
     df[['latitude', 'longitude', 'country']] = df['location'].apply(
         lambda loc: pd.Series(get_lat_lon(loc)))

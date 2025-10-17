@@ -161,7 +161,6 @@ def get_lat_lon(location):
             # If geocoding fails (invalid location), return defaults
             return default_lat, default_lon, default_country
     except Exception as e:
-        print(f"Error geocoding location '{location}': {e}")
         # On exception, return defaults
         return default_lat, default_lon, default_country
 
