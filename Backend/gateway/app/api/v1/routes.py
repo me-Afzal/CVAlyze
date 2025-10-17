@@ -2,12 +2,10 @@ import os
 import httpx
 from fastapi import APIRouter,Request,UploadFile,File,HTTPException
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from jose import jwt,JWTError
 from io import BytesIO
 from dotenv import load_dotenv
-from prometheus_fastapi_instrumentator import Instrumentator
 
 load_dotenv()
 
