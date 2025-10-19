@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  - job_name: "gateway"
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
+
+  - job_name: "user_service"
+    static_configs:
+      - targets: ["host.docker.internal:8001"]
+
+  - job_name: "etl_service"
+    static_configs:
+      - targets: ["host.docker.internal:8002"]
