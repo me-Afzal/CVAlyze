@@ -1,16 +1,30 @@
-from fastapi import FastAPI,Request
-from fastapi.responses import JSONResponse
+import os
+import logging
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from app.api.v1.routes import router as v1_router
-from jose import jwt,JWTError
+from jose import jwt, JWTError
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
+
+# ------------------ Logging Setup ------------------
+LOG_FILE_PATH = "gateway_logs.txt"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(LOG_FILE_PATH),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("gateway")
 
 app = FastAPI(
     title="CVAlyze API Gateway",
