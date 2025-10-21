@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+prometheus-fastapi-instrumentator
+SQLAlchemy
+pydantic
+python-dotenv
+passlib
+argon2-cffi
+python-jose
+psycopg2-binary

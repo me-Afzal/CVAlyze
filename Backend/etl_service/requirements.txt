@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+prometheus-fastapi-instrumentator
+SQLAlchemy
+pydantic
+typing-extensions
+pandas
+aiosmtplib
+python-multipart
+PyMuPDF
+pdfplumber
+python-docx
+geopy
+genderize

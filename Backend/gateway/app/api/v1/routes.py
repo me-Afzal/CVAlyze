@@ -15,7 +15,6 @@ import logging
 from fastapi import APIRouter, Request, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from typing import List
-from jose import jwt, JWTError  # pylint: disable=unused-import
 from io import BytesIO
 from dotenv import load_dotenv
 
@@ -30,8 +29,8 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 # Service URLs (can be updated when deployed in Kubernetes)
-USER_SERVICE = "http://localhost:8001/api/v1"
-ETL_SERVICE = "http://localhost:8002/api/v1"
+USER_SERVICE = "http://cv_user_service:8001/api/v1"
+ETL_SERVICE = "http://cv_etl_service:8002/api/v1"
 
 # Create a router instance for API version v1
 router = APIRouter()
@@ -174,6 +173,6 @@ async def upload_cvs(files: List[UploadFile] = File(...)):
     except Exception as e:
         # Logs the full traceback for debugging
         logger.exception("ETL service request failed: %s", str(e))
-        raise HTTPException(status_code=500, detail=f"ETL service request failed: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"ETL service request failed: {str(e)}")
 
     return JSONResponse(content=result, status_code=response.status_code)

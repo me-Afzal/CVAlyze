@@ -1,15 +1,19 @@
 global:
   scrape_interval: 10s
+  evaluation_interval: 10s
 
 scrape_configs:
-  - job_name: "gateway"
+  - job_name: "cv_gateway"
+    metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8000"]
+      - targets: ["cv_gateway:8000"]
 
-  - job_name: "user_service"
+  - job_name: "cv_user_service"
+    metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8001"]
+      - targets: ["cv_user_service:8001"]
 
-  - job_name: "etl_service"
+  - job_name: "cv_etl_service"
+    metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8002"]
+      - targets: ["cv_etl_service:8002"]

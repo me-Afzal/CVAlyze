@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+python-jose
+prometheus-fastapi-instrumentator
+pydantic
+typing-extensions
+python-multipart  

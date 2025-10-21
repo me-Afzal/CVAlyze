@@ -1,13 +1,16 @@
-import fitz
-import pdfplumber
-from docx import Document
 import os
+import time
 import unicodedata
 import re
 import io
 from io import BytesIO
+import fitz
+import pdfplumber
+from docx import Document
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 from genderize import Genderize
+
 
 # Extract text from various document formats
 # Currently supports PDF, DOCX, and TXT files
@@ -139,31 +142,47 @@ def clean_text(text: str) -> str:
 
     return text
 
-# Initialize geolocator for location extraction
-geolocator = Nominatim(user_agent="cv_app")
+# Initialize geolocator with a longer timeout
+geolocator = Nominatim(user_agent="cv_app", timeout=5)
 
-def get_lat_lon(location):
-    default_lat, default_lon, default_country = 20.5937, 78.9629, "India"  # Approx center of India
-    try:
-        # If location is missing or empty, return defaults
-        if not location:
-            return default_lat, default_lon, default_country
-        
-        loc = geolocator.geocode(location, addressdetails=True)
-        
-        if loc:
-            latitude = loc.latitude
-            longitude = loc.longitude
-            # Get country if available, else use default
-            country = loc.raw.get("address", {}).get("country", default_country)
-            return latitude, longitude, country
-        else:
-            # If geocoding fails (invalid location), return defaults
-            return default_lat, default_lon, default_country
-    except Exception as e:
-        # On exception, return defaults
+def get_lat_lon(location, retries=3, delay=1):
+    """
+    Get latitude, longitude, and country for a location string.
+    
+    Args:
+        location (str): Location string
+        retries (int): Number of retries on timeout
+        delay (int): Delay between retries in seconds
+
+    Returns:
+        tuple: (latitude, longitude, country)
+    """
+    default_lat, default_lon, default_country = 20.5937, 78.9629, "India"
+
+    if not location:
         return default_lat, default_lon, default_country
 
+    attempt = 0
+    while attempt < retries:
+        try:
+            loc = geolocator.geocode(location, addressdetails=True)
+            if loc:
+                latitude = loc.latitude
+                longitude = loc.longitude
+                country = loc.raw.get("address", {}).get("country", default_country)
+                return latitude, longitude, country
+            else:
+                return default_lat, default_lon, default_country
+
+        except GeocoderTimedOut:
+            attempt += 1
+            time.sleep(delay)
+
+        except Exception:
+            return default_lat, default_lon, default_country
+
+    # If all retries fail
+    return default_lat, default_lon, default_country
 
 # Find Gender
 # Initialize Genderize once (to avoid repeated API calls)
