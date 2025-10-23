@@ -158,7 +158,7 @@ async def upload_cvs(files: List[UploadFile] = File(...)):
         files_to_send.append(("files", (file.filename, BytesIO(content), file.content_type)))
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(150.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
             response = await client.post(f"{ETL_SERVICE}/upload_cvs", files=files_to_send)
             result = response.json()
         logger.info("ETL upload successful with status code: %s", response.status_code)

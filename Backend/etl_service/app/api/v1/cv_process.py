@@ -1,23 +1,21 @@
 """CV Processing main logic for ETL Service."""
 import os
-import requests
 import asyncio
-import httpx
-from io import BytesIO
-import pandas as pd
-import aiosmtplib
-import json
-import pytz
 import logging
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from fastapi.responses import JSONResponse
+
+import httpx
+import pandas as pd
+import aiosmtplib
+import pytz
 from dotenv import load_dotenv
 from google.cloud import bigquery
-from google.oauth2 import service_account
+
 from app.api.v1.preprocess import extract_text, clean_text, get_lat_lon, get_gender
 from app.api.v1.rag_extractor import CvExtractor
+
 
 # ------------------ Load Environment ------------------
 load_dotenv()
@@ -32,7 +30,6 @@ API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-fl
 _active_api_key = None
 _key_checked_at = None
 
-
 # ------------------ API Key Check ------------------
 async def check_api_key_async(api_key):
     """Send a small test request asynchronously to verify if the API key works."""
@@ -45,9 +42,13 @@ async def check_api_key_async(api_key):
             if response.status_code == 200:
                 logger.info(f"API key validated successfully: {api_key[:8]}********")
                 return api_key
-            else:
-                logger.warning(f"API key might be invalid or rate-limited: {api_key[:8]}******** | Status: {response.status_code}")
-                return None
+
+            logger.warning(
+                f"API key might be invalid or rate-limited: {api_key[:8]}******** | "
+                f"Status: {response.status_code}"
+            )
+            return None
+
         except Exception as e:
             logger.error(f"API key check failed for {api_key[:8]}******** — {e}")
             return None
@@ -68,10 +69,11 @@ async def get_active_api_key(force_refresh=False):
         if valid_key:
             _active_api_key = valid_key
             _key_checked_at = datetime.now()
-            logger.info(f"Using API key: {valid_key[:8]}********")
+            logger.info(f"Using API key: {valid_key[:8]}*****")
             return valid_key
-        else:
-            logger.warning(f"API key {key[:8]}******** is invalid or rate-limited, checking next...")
+
+        logger.warning(
+            f"API key {key[:8]}**** is invalid or rate-limited, checking next...")
 
     logger.critical("All API keys are invalid or rate-limited.")
     raise RuntimeError("All API keys are invalid or rate-limited.")
@@ -198,17 +200,20 @@ async def process_cvs(files):
     df = df.dropna(how='all')
 
     if not df.empty:
+        # Latitude, Longitude, Country and Gender Enrichment
         logger.info(f"Enriching data with geolocation and gender for {len(df)} candidates.")
         df[['latitude', 'longitude', 'country']] = df['location'].apply(
             lambda loc: pd.Series(get_lat_lon(loc))
         )
         df['gender'] = df['name'].apply(get_gender)
 
+        # Convert DataFrame to JSON records
         json_response = df.to_dict(orient='records')
 
+        # Load to BigQuery
         success = await load_to_bigquery(df)
         if success:
-            await send_extraction_success_email()
+            await send_extraction_success_email() # Send notification email
         else:
             logger.error("BigQuery upload failed — email not sent.")
     else:

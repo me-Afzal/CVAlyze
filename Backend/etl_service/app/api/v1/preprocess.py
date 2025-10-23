@@ -3,7 +3,6 @@ import os
 import time
 import unicodedata
 import re
-import io
 from io import BytesIO
 import fitz
 import pdfplumber
@@ -93,13 +92,13 @@ def extract_text(file_obj, filename=None):
 
     if ext == ".pdf":
         return extract_text_from_pdf(file_obj)
-    elif ext == ".docx":
+    if ext == ".docx":
         return extract_text_from_docx(file_obj)
-    elif ext == ".txt":
+    if ext == ".txt":
         file_obj.seek(0)
         return file_obj.read().decode("utf-8", errors="ignore")
-    else:
-        raise ValueError(f"Unsupported file format: {ext}")
+
+    raise ValueError(f"Unsupported file format: {ext}")
 
 #Clean text
 def clean_text(text: str) -> str:
@@ -178,8 +177,8 @@ def get_lat_lon(location, retries=3, delay=1):
                 longitude = loc.longitude
                 country = loc.raw.get("address", {}).get("country", default_country)
                 return latitude, longitude, country
-            else:
-                return default_lat, default_lon, default_country
+
+            return default_lat, default_lon, default_country
 
         except GeocoderTimedOut:
             attempt += 1
@@ -203,5 +202,5 @@ def get_gender(name):
         if gender is None:
             return 'unknown'
         return gender
-    except:
+    except Exception:
         return 'unknown'

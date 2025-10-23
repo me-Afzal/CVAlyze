@@ -2,7 +2,6 @@
 import re
 import json
 import requests
-import os
 
 class CvExtractor:
     """Custom CV extractor using Gemini API."""
@@ -81,7 +80,10 @@ You are a fast, precise resume information extraction system. Your **ONLY** outp
 
         # Call Gemini API
         try:
-            response = requests.post(self.api_url, headers=headers, json=payload).json()
+            response = requests.post(self.api_url,
+                                     headers=headers,
+                                     json=payload,
+                                     timeout=180).json()
             raw_text = response["candidates"][0]["content"]["parts"][0]["text"]
             clean_json_text = re.sub(r"^```[a-zA-Z]*|```$", "", raw_text).strip()
             data = json.loads(clean_json_text)

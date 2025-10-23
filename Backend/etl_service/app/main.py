@@ -5,8 +5,8 @@ Includes Prometheus metrics, logging setup, and routes registration.
 
 import logging
 import os
-import pytz
 from datetime import datetime
+import pytz
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -29,12 +29,12 @@ class ISTFormatter(logging.Formatter):
 # Handlers
 file_handler = logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
 file_handler.setFormatter(ISTFormatter(
-    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s", 
+    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
                                       datefmt="%Y-%m-%d %H:%M:%S"))
 
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(ISTFormatter(
-    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s", 
+    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
                                          datefmt="%Y-%m-%d %H:%M:%S"))
 
 # Logger setup

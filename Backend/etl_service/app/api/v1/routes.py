@@ -4,12 +4,12 @@ Handles resume uploads, processing, and provides access to logs.
 """
 
 import logging
-import asyncio,os
+import asyncio
+import os
 from io import BytesIO
 from typing import List
 from contextlib import asynccontextmanager
 from fastapi import APIRouter, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse
 from app.api.v1.cv_process import process_cvs, get_active_api_key
 
 # ------------------ Logging Setup ------------------
@@ -83,8 +83,8 @@ async def upload_cvs(files: List[UploadFile] = File(...)):
     except asyncio.TimeoutError:
         logger.error("CV processing timed out.")
         raise HTTPException(status_code=504, detail="Processing timed out. Try again.")
-    except Exception as exc:
-        logger.exception("CV processing failed: %s", str(exc))
-        raise HTTPException(status_code=500, detail=f"CV processing failed: {str(exc)}") from exc
+    except Exception as e:
+        logger.exception("CV processing failed: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"CV processing failed: {str(e)}") from e
 
     return result
