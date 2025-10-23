@@ -1,3 +1,4 @@
+"""Database models for user operations in the user service."""
 from sqlalchemy import Integer,String,Column
 from app.api.v1.database import Base
 

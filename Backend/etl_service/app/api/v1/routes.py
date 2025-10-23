@@ -4,7 +4,7 @@ Handles resume uploads, processing, and provides access to logs.
 """
 
 import logging
-import os
+import asyncio,os
 from io import BytesIO
 from typing import List
 from contextlib import asynccontextmanager
@@ -31,6 +31,7 @@ async def lifespan(app):
 # Router with lifespan
 router = APIRouter(lifespan=lifespan)
 
+ALLOWED_EXTENSIONS = [".pdf", ".docx", ".txt"] # Supported cv/resume file types
 
 @router.get("/")
 def root():
@@ -45,33 +46,43 @@ def root():
 @router.post("/upload_cvs")
 async def upload_cvs(files: List[UploadFile] = File(...)):
     """
-    Upload and process one or more resume files (PDF, DOCX, etc.).
-    Args:
-        files (List[UploadFile]): List of uploaded files.
-    Returns:
-        dict: Processed CV data or error details.
+    Upload and process one or more resume files asynchronously.
     """
     if not files or len(files) == 0:
         logger.warning("Upload attempt with no files provided.")
         raise HTTPException(status_code=400, detail="No files were uploaded.")
 
-    logger.info("Received %d files for processing", len(files))
-    processed_files = []
-
+    # Validate extensions
     for file in files:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            logger.warning("Unsupported file type: %s", file.filename)
+            raise HTTPException(status_code=400,
+                                detail=f"Unsupported file type: {ext}")
+
+    logger.info("Received %d files for processing", len(files))
+
+    # Async concurrent read
+    async def read_file(file: UploadFile):
+        """Read file content asynchronously."""
         try:
             content = await file.read()
             if not content:
-                logger.warning("Empty file uploaded: %s", file.filename)
-                raise HTTPException(status_code=400, detail=f"{file.filename} is empty.")
-            processed_files.append((file.filename, BytesIO(content)))
-        except Exception as exc:
-            logger.exception("Error reading file %s: %s", file.filename, str(exc))
-            raise HTTPException(status_code=500, detail=f"Error reading {file.filename}: {str(exc)}") from exc
+                raise ValueError("Empty file")
+            return file.filename, BytesIO(content)
+        except Exception as e:
+            logger.exception("Error reading file %s: %s", file.filename, str(e))
+            raise HTTPException(status_code=500,
+                                detail=f"Error reading {file.filename}: {str(e)}")
+
+    processed_files = await asyncio.gather(*[read_file(file) for file in files])
 
     try:
-        result = await process_cvs(processed_files)
+        result = await asyncio.wait_for(process_cvs(processed_files), timeout=300)
         logger.info("CV processing successful for %d files.", len(processed_files))
+    except asyncio.TimeoutError:
+        logger.error("CV processing timed out.")
+        raise HTTPException(status_code=504, detail="Processing timed out. Try again.")
     except Exception as exc:
         logger.exception("CV processing failed: %s", str(exc))
         raise HTTPException(status_code=500, detail=f"CV processing failed: {str(exc)}") from exc

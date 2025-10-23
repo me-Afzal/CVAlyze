@@ -1,3 +1,4 @@
+"""Schemas for user operations in the user service."""
 from pydantic import BaseModel
 
 class UserCreate(BaseModel):

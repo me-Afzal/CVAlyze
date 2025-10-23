@@ -1,6 +1,8 @@
 import os
 import logging
 import httpx
+import pytz
+from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, FileResponse,PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,15 +23,38 @@ ETL_SERVICE = "http://cv_etl_service:8002/"
 # ------------------ Logging Setup ------------------
 LOG_FILE_PATH = "gateway_logs.txt"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE_PATH),
-        logging.StreamHandler()
-    ]
-)
+class ISTFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        ist = pytz.timezone("Asia/Kolkata")
+        dt = datetime.fromtimestamp(record.created, tz=ist)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.isoformat()
+
+# Handlers
+file_handler = logging.FileHandler(LOG_FILE_PATH, mode="a", encoding="utf-8")
+file_handler.setFormatter(ISTFormatter(
+    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s", 
+    datefmt="%Y-%m-%d %H:%M:%S"
+))
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(ISTFormatter(
+    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s", 
+    datefmt="%Y-%m-%d %H:%M:%S"
+))
+
+# Logger setup
 logger = logging.getLogger("gateway")
+logger.setLevel(logging.INFO)
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+# Reduce verbosity of other loggers
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("uvicorn").setLevel(logging.WARNING)
+
+logger.info("Starting Gateway Service")
 
 # ------------------ FastAPI App ------------------
 app = FastAPI(

@@ -7,3 +7,4 @@ prometheus-fastapi-instrumentator
 pydantic
 typing-extensions
 python-multipart  
+pytz

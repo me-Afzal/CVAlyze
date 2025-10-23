@@ -1,3 +1,4 @@
+"""Preprocessing utilities for CV text extraction and cleaning."""
 import os
 import time
 import unicodedata
@@ -11,11 +12,12 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut
 from genderize import Genderize
 
-
 # Extract text from various document formats
 # Currently supports PDF, DOCX, and TXT files
 # ---------- PDF extractor (adjusted for file-like objects) ----------
 def extract_text_from_pdf(file_obj):
+    """Extract text and links from a PDF file-like object."""
+
     final_text = ""
     all_links = set()
 
@@ -67,6 +69,8 @@ def extract_text_from_pdf(file_obj):
 
 # ---------- DOCX extractor ----------
 def extract_text_from_docx(file_obj):
+    """Extract text from a DOCX file-like object."""
+
     if isinstance(file_obj, str):
         doc = Document(file_obj)
     else:  # BytesIO
@@ -77,6 +81,8 @@ def extract_text_from_docx(file_obj):
 
 # ---------- General extractor ----------
 def extract_text(file_obj, filename=None):
+    """Extract text from a file-like object based on its extension."""
+
     # Determine extension
     if filename:
         ext = os.path.splitext(filename)[1].lower()
@@ -98,7 +104,7 @@ def extract_text(file_obj, filename=None):
 #Clean text
 def clean_text(text: str) -> str:
     """Clean and normalize extracted CV text for LLM extraction."""
-    
+
     # Normalize Unicode and typographic symbols
     text = unicodedata.normalize("NFKC", text)
     text = re.sub(r"\(cid:\d+\)", "", text)
@@ -157,6 +163,7 @@ def get_lat_lon(location, retries=3, delay=1):
     Returns:
         tuple: (latitude, longitude, country)
     """
+
     default_lat, default_lon, default_country = 20.5937, 78.9629, "India"
 
     if not location:
@@ -188,6 +195,8 @@ def get_lat_lon(location, retries=3, delay=1):
 # Initialize Genderize once (to avoid repeated API calls)
 genderize = Genderize()
 def get_gender(name):
+    """ Get gender from name using Genderize"""
+
     try:
         result = genderize.get([name])[0]  # Genderize expects a list
         gender = result['gender']

@@ -1,3 +1,4 @@
+"""CV Processing main logic for ETL Service."""
 import os
 import requests
 import asyncio
@@ -5,38 +6,50 @@ import httpx
 from io import BytesIO
 import pandas as pd
 import aiosmtplib
-from datetime import datetime,timedelta
+import json
+import pytz
+import logging
+from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from google.cloud import bigquery
+from google.oauth2 import service_account
 from app.api.v1.preprocess import extract_text, clean_text, get_lat_lon, get_gender
 from app.api.v1.rag_extractor import CvExtractor
 
+# ------------------ Load Environment ------------------
 load_dotenv()
 
-API_KEYS = [os.getenv("API_KEY1"),os.getenv("API_KEY2")]
+# ------------------ Logging ------------------
+logger = logging.getLogger("etl_service")
+
+# ------------------ API Key Config ------------------
+API_KEYS = [os.getenv("API_KEY1"), os.getenv("API_KEY2")]
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
 
-# 
 _active_api_key = None
 _key_checked_at = None
 
+
+# ------------------ API Key Check ------------------
 async def check_api_key_async(api_key):
     """Send a small test request asynchronously to verify if the API key works."""
     headers = {"Content-Type": "application/json", "X-goog-api-key": api_key}
     payload = {"contents": [{"parts": [{"text": "ping"}]}]}
-    
+
     async with httpx.AsyncClient(timeout=5) as client:
         try:
             response = await client.post(API_URL, headers=headers, json=payload)
             if response.status_code == 200:
+                logger.info(f"API key validated successfully: {api_key[:8]}********")
                 return api_key
             else:
-                print(f"[WARN] API key might be invalid or rate-limited: {api_key[:8]}...")
+                logger.warning(f"API key might be invalid or rate-limited: {api_key[:8]}******** | Status: {response.status_code}")
                 return None
         except Exception as e:
-            print(f"[ERROR] API check failed: {e}")
+            logger.error(f"API key check failed for {api_key[:8]}******** — {e}")
             return None
 
 
@@ -47,6 +60,7 @@ async def get_active_api_key(force_refresh=False):
     # Use cached key if valid
     if _active_api_key and _key_checked_at and not force_refresh:
         if datetime.now() - _key_checked_at < timedelta(minutes=20):
+            logger.debug("Using cached active API key.")
             return _active_api_key
 
     for key in API_KEYS:
@@ -54,13 +68,16 @@ async def get_active_api_key(force_refresh=False):
         if valid_key:
             _active_api_key = valid_key
             _key_checked_at = datetime.now()
-            print(f"[INFO] Using API key: {valid_key[:8]}********")
+            logger.info(f"Using API key: {valid_key[:8]}********")
             return valid_key
         else:
-            print(f"[INFO] API key {key[:8]} is invalid or rate-limited, checking next...")
+            logger.warning(f"API key {key[:8]}******** is invalid or rate-limited, checking next...")
 
+    logger.critical("All API keys are invalid or rate-limited.")
     raise RuntimeError("All API keys are invalid or rate-limited.")
 
+
+# ------------------ Email Notification ------------------
 async def send_extraction_success_email():
     """
     Sends an email notification after successful CV extraction and 
@@ -71,25 +88,25 @@ async def send_extraction_success_email():
     password = os.getenv("APP_PASSWORD")  # Gmail App Password
 
     if not all([sender_email, receiver_email, password]):
-        print("Missing required environment variables in .env file.")
+        logger.error("Missing required environment variables for email configuration.")
         return
 
-    # Current date and time
-    current_time=datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-    
-    # Create the email
+    # Current date and time (IST)
+    india_tz = pytz.timezone("Asia/Kolkata")
+    current_time = datetime.now(india_tz).strftime("%d-%m-%Y %H:%M:%S")
+
+    # Create email
     message = MIMEMultipart()
     message["From"] = sender_email
     message["To"] = receiver_email
     message["Subject"] = "CVAlyze | CV Extraction and Warehouse Update Completed"
 
-    # Email body
     body = f"""Dear Team,
 
 We are pleased to inform you that the latest CV extraction and data loading process 
 has been successfully completed through the CVAlyze automation pipeline.
 
-Completion Timestamp: {current_time}
+Completion Timestamp: {current_time} (IST)
 
 All candidate records have been updated in the centralized data warehouse, ensuring 
 that the most recent insights are now available for analysis.
@@ -111,49 +128,91 @@ CVAlyze AI Data Automation System
             username=sender_email,
             password=password
         )
-        print(" Email sent successfully!")
+        logger.info("Email notification sent successfully!")
     except Exception as e:
-        print(" Error while sending email:", e)
+        logger.exception(f"Error sending email: {e}")
+
+
+# ------------------ BigQuery Upload ------------------
+def _load_to_bigquery_sync(df):
+    """Function to load DataFrame to BigQuery synchronously."""
+    list_columns = ['skills', 'experience', 'projects', 'certifications', 'achievements']
+
+    for col in list_columns:
+        if col in df.columns:
+            df[col] = df[col].apply(lambda x: x if isinstance(x, list) else [])
+
+    client = bigquery.Client()
+    table_id = "project-72dfbe56-9a82-4b81-a1a.cv_warehouse.cv_data"
+    job_config = bigquery.LoadJobConfig(
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        autodetect=True,
+    )
+
+    logger.info(f"Uploading {len(df)} CV records to BigQuery table: {table_id}")
+    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+    job.result()
+    logger.info("BigQuery upload completed successfully.")
+    return True
+
+
+async def load_to_bigquery(df):
+    """Asynchronous wrapper to load DataFrame to BigQuery."""
+    return await asyncio.to_thread(_load_to_bigquery_sync, df)
+
+
+# ------------------ CV Processing ------------------
+async def process_single_cv(filename, file_stream, extractor):
+    """Process a single CV file and extract structured data."""
+    try:
+        text = clean_text(extract_text(file_stream, filename))
+        logger.debug(f"Extracted text successfully from {filename}")
+        return extractor.extract(text)
+    except Exception as e:
+        logger.exception(f"Error processing file {filename}: {e}")
+        return {"error": str(e), "file": filename}
 
 
 async def process_cvs(files):
     """
     Process uploaded CV files and return structured JSON with additional info.
     """
-    api_key=await (get_active_api_key())
+    logger.info(f"Starting processing of {len(files)} CV files...")
+    api_key = await get_active_api_key()
 
     extractor = CvExtractor(api_key)
 
-    all_cv_data = []
-    errors = []
+    # Process all CVs concurrently
+    tasks = [process_single_cv(f, s, extractor) for f, s in files]
+    results = await asyncio.gather(*tasks)
 
-    for filename, file_stream in files:
-        try:
-            text = clean_text(extract_text(file_stream, filename))
-            info_dict = extractor.extract(text)
-            all_cv_data.append(info_dict)
-        except Exception as e:
-            errors.append({"file": filename, "error": str(e)})
+    all_cv_data = [r for r in results if "error" not in r]
+    errors = [r for r in results if "error" in r]
 
-    # Define expected structure
-    expected_cols = ['name', 'profession', 'phone_number', 'email', 'location', 
-                     'github_link', 'linkedin_link', 'skills', 'education', 
+    # Feature Engineering: Data Enrichment
+    expected_cols = ['name', 'profession', 'phone_number', 'email', 'location',
+                     'github_link', 'linkedin_link', 'skills', 'education',
                      'experience', 'projects', 'certifications', 'achievements']
-    # Enriching data
-    df = pd.DataFrame(all_cv_data).reindex(columns=expected_cols,fill_value=None)
 
-    # Drop rows where all values are None
+    df = pd.DataFrame(all_cv_data).reindex(columns=expected_cols, fill_value=None)
     df = df.dropna(how='all')
-    
-    # Add geolocation and gender
-    df[['latitude', 'longitude', 'country']] = df['location'].apply(
-        lambda loc: pd.Series(get_lat_lon(loc)))
-    df['gender'] = df['name'].apply(get_gender)
 
-    # Convert to JSON records
-    json_response = df.to_dict(orient="records")
-    
-    # Send success email
-    # await send_extraction_success_email()
+    if not df.empty:
+        logger.info(f"Enriching data with geolocation and gender for {len(df)} candidates.")
+        df[['latitude', 'longitude', 'country']] = df['location'].apply(
+            lambda loc: pd.Series(get_lat_lon(loc))
+        )
+        df['gender'] = df['name'].apply(get_gender)
 
+        json_response = df.to_dict(orient='records')
+
+        success = await load_to_bigquery(df)
+        if success:
+            await send_extraction_success_email()
+        else:
+            logger.error("BigQuery upload failed — email not sent.")
+    else:
+        logger.warning("No valid CV data found to upload.")
+
+    logger.info("CV processing completed.")
     return {"jsonCv": json_response, "errors": errors}

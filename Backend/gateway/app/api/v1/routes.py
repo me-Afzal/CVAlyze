@@ -40,9 +40,6 @@ router = APIRouter()
 def root():
     """
     Root endpoint for the API Gateway v1.
-
-    Returns:
-        dict: A welcome message for the API Gateway v1.
     """
     logger.info("Gateway v1 root accessed")
     return {"message": "Welcome to CVAlyze API Gateway v1"}

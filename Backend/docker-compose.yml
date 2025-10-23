@@ -36,6 +36,10 @@ services:
       - "8002:8002"
     env_file:
       - ./etl_service/.env
+    volumes:
+      - ./etl_service/gcp_key.json:/app/gcp_key.json:ro   # Mount the key file (read-only)
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/gcp_key.json
     restart: unless-stopped
 
   prometheus:

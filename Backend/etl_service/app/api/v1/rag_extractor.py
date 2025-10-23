@@ -1,16 +1,18 @@
+"""Custom RAG extractor using Gemini API."""
 import re
 import json
 import requests
 import os
 
-
 class CvExtractor:
+    """Custom CV extractor using Gemini API."""
     def __init__(self,api_key):
         self.api_key = api_key
         self.api_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
 
     # ---------- Post-process empty lists as None ----------
     def clean_empty_lists_as_none(self, data):
+        """Convert empty lists or lists with only null/None to None."""
         for key, value in data.items():
             if value is None:
                 continue
@@ -22,11 +24,14 @@ class CvExtractor:
                 # Check if list is empty or contains only null/None
                 if len(value) == 0:
                     data[key] = None
-                elif all((v is None) or (isinstance(v, str) and v.strip().lower() == "null") for v in value):
+                elif all((v is None) or (
+                    isinstance(v, str) and v.strip().lower() == "null") for v in value):
                     data[key] = None
         return data
+
     # ---------- Normalize GitHub and LinkedIn links ----------
     def normalize_links(self, data):
+        """Ensure GitHub and LinkedIn links start with https."""
         github = data.get("github_link")
         if github and not github.startswith("http"):
             data["github_link"] = "https://" + github.strip()
@@ -39,6 +44,8 @@ class CvExtractor:
 
     # ---------- Main extraction ----------
     def extract(self, text):
+        """Extract structured CV sections with Prompt Engineering."""
+
         combined_prompt = """
 You are a fast, precise resume information extraction system. Your **ONLY** output must be a single JSON object.
 
@@ -83,6 +90,8 @@ You are a fast, precise resume information extraction system. Your **ONLY** outp
             return data
         except Exception as e:
             print(f"Error extracting sections: {e}")
-            fallback_keys = ["name","profession","phone_number","email","location","github_link","linkedin_link",
-                             "skills","education","experience","projects","certifications","achievements"]
+            fallback_keys = ["name","profession","phone_number","email",
+                             "location","github_link","linkedin_link",
+                             "skills","education","experience","projects",
+                             "certifications","achievements"]
             return {key: None for key in fallback_keys}
