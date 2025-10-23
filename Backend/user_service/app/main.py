@@ -16,7 +16,9 @@ from app.api.v1.routes import router as v1_router
 LOG_FILE = "user_service.log"
 
 class ISTFormatter(logging.Formatter):
+    """ Custom logging formatter to convert timestamps to IST timezone. """
     def formatTime(self, record, datefmt=None):
+        """Convert UTC time to IST for log records."""
         ist = pytz.timezone("Asia/Kolkata")
         dt = datetime.fromtimestamp(record.created, tz=ist)
         if datefmt:

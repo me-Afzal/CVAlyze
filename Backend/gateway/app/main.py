@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Load environment variables for JWT authentication
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
@@ -24,7 +25,9 @@ ETL_SERVICE = "http://cv_etl_service:8002/"
 LOG_FILE_PATH = "gateway_logs.txt"
 
 class ISTFormatter(logging.Formatter):
+    """ Custom logging formatter to convert timestamps to IST timezone. """
     def formatTime(self, record, datefmt=None):
+        """Convert UTC time to IST for log records."""
         ist = pytz.timezone("Asia/Kolkata")
         dt = datetime.fromtimestamp(record.created, tz=ist)
         if datefmt:
@@ -64,6 +67,7 @@ app = FastAPI(
 
 Instrumentator().instrument(app).expose(app)
 
+# Cors middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -75,7 +79,8 @@ app.add_middleware(
 # ------------------ Middleware ------------------
 @app.middleware("http")
 async def token_auth_middleware(request: Request, call_next):
-    """JWT authentication middleware that protects API routes except login/register/metrics."""
+    """JWT authentication middleware that protects API routes
+        except login/register/metrics."""
     
     # Allow open routes (including versioned ones)
     open_paths = [
@@ -117,6 +122,7 @@ app.include_router(v1_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
+    """Root endpoint for the API Gateway."""
     logger.info("Gateway root accessed")
     return {"message": "Welcome to CVAlyze API Gateway"}
 

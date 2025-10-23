@@ -4,3 +4,4 @@ __pycache__/
 og_cv/
 cv/
 **/.env
+Backend/etl_service/gcp_key.json
