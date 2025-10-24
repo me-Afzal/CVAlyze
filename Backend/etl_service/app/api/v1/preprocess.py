@@ -1,18 +1,22 @@
+"""Preprocessing utilities for CV text extraction and cleaning."""
+import os
+import time
+import unicodedata
+import re
+from io import BytesIO
 import fitz
 import pdfplumber
 from docx import Document
-import os
-import unicodedata
-import re
-import io
-from io import BytesIO
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 from genderize import Genderize
 
 # Extract text from various document formats
 # Currently supports PDF, DOCX, and TXT files
 # ---------- PDF extractor (adjusted for file-like objects) ----------
 def extract_text_from_pdf(file_obj):
+    """Extract text and links from a PDF file-like object."""
+
     final_text = ""
     all_links = set()
 
@@ -64,6 +68,8 @@ def extract_text_from_pdf(file_obj):
 
 # ---------- DOCX extractor ----------
 def extract_text_from_docx(file_obj):
+    """Extract text from a DOCX file-like object."""
+
     if isinstance(file_obj, str):
         doc = Document(file_obj)
     else:  # BytesIO
@@ -74,6 +80,8 @@ def extract_text_from_docx(file_obj):
 
 # ---------- General extractor ----------
 def extract_text(file_obj, filename=None):
+    """Extract text from a file-like object based on its extension."""
+
     # Determine extension
     if filename:
         ext = os.path.splitext(filename)[1].lower()
@@ -84,18 +92,18 @@ def extract_text(file_obj, filename=None):
 
     if ext == ".pdf":
         return extract_text_from_pdf(file_obj)
-    elif ext == ".docx":
+    if ext == ".docx":
         return extract_text_from_docx(file_obj)
-    elif ext == ".txt":
+    if ext == ".txt":
         file_obj.seek(0)
         return file_obj.read().decode("utf-8", errors="ignore")
-    else:
-        raise ValueError(f"Unsupported file format: {ext}")
+
+    raise ValueError(f"Unsupported file format: {ext}")
 
 #Clean text
 def clean_text(text: str) -> str:
     """Clean and normalize extracted CV text for LLM extraction."""
-    
+
     # Normalize Unicode and typographic symbols
     text = unicodedata.normalize("NFKC", text)
     text = re.sub(r"\(cid:\d+\)", "", text)
@@ -139,41 +147,60 @@ def clean_text(text: str) -> str:
 
     return text
 
-# Initialize geolocator for location extraction
-geolocator = Nominatim(user_agent="cv_app")
+# Initialize geolocator with a longer timeout
+geolocator = Nominatim(user_agent="cv_app", timeout=5)
 
-def get_lat_lon(location):
-    default_lat, default_lon, default_country = 20.5937, 78.9629, "India"  # Approx center of India
-    try:
-        # If location is missing or empty, return defaults
-        if not location:
-            return default_lat, default_lon, default_country
-        
-        loc = geolocator.geocode(location, addressdetails=True)
-        
-        if loc:
-            latitude = loc.latitude
-            longitude = loc.longitude
-            # Get country if available, else use default
-            country = loc.raw.get("address", {}).get("country", default_country)
-            return latitude, longitude, country
-        else:
-            # If geocoding fails (invalid location), return defaults
-            return default_lat, default_lon, default_country
-    except Exception as e:
-        # On exception, return defaults
+def get_lat_lon(location, retries=3, delay=1):
+    """
+    Get latitude, longitude, and country for a location string.
+    
+    Args:
+        location (str): Location string
+        retries (int): Number of retries on timeout
+        delay (int): Delay between retries in seconds
+
+    Returns:
+        tuple: (latitude, longitude, country)
+    """
+
+    default_lat, default_lon, default_country = 20.5937, 78.9629, "India"
+
+    if not location:
         return default_lat, default_lon, default_country
 
+    attempt = 0
+    while attempt < retries:
+        try:
+            loc = geolocator.geocode(location, addressdetails=True)
+            if loc:
+                latitude = loc.latitude
+                longitude = loc.longitude
+                country = loc.raw.get("address", {}).get("country", default_country)
+                return latitude, longitude, country
+
+            return default_lat, default_lon, default_country
+
+        except GeocoderTimedOut:
+            attempt += 1
+            time.sleep(delay)
+
+        except Exception:
+            return default_lat, default_lon, default_country
+
+    # If all retries fail
+    return default_lat, default_lon, default_country
 
 # Find Gender
 # Initialize Genderize once (to avoid repeated API calls)
 genderize = Genderize()
 def get_gender(name):
+    """ Get gender from name using Genderize"""
+
     try:
         result = genderize.get([name])[0]  # Genderize expects a list
         gender = result['gender']
         if gender is None:
             return 'unknown'
         return gender
-    except:
+    except Exception:
         return 'unknown'
