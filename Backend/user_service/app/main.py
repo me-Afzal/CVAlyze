@@ -5,8 +5,8 @@ Includes Prometheus metrics, logging setup, and versioned routes.
 
 import logging
 import os
-import pytz
 from datetime import datetime
+import pytz
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -70,7 +70,7 @@ def root():
     """
     Root endpoint to verify the User Service status.
     """
-    logger.info("Root endpoint accessed.")
+    logger.info("User Service Root endpoint accessed.")
     return {"message": "Welcome to CVAlyze User Service API"}
 
 

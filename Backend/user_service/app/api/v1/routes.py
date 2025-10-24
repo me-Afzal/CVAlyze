@@ -50,9 +50,9 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user.
     """
-    logger.info(f"Registration attempt for user: {user.username}")
+    logger.info("Registration attempt for user: %s", user.username)
     result = auth.register_user(db, user)
-    logger.info(f"Registration is completed for user {user.username}")
+    logger.info("Registration is completed for user %s", user.username)
     return result
 
 
@@ -61,9 +61,9 @@ def login_user(user: schemas.UserLogin, db: Session = Depends(get_db)):
     """
     Authenticate a user and return a JWT token.
     """
-    logger.info(f"Login attempt for user: {user.username}")
+    logger.info("Login attempt for user: %s", user.username)
     result = auth.authenticate_user(db, user)
-    logger.info(f"Login is successfull for user {user.username}")
+    logger.info("Login is successful for user %s", user.username)
     return result
 
 
@@ -72,9 +72,9 @@ def update_pw(user: schemas.UpdateUser, db: Session = Depends(get_db)):
     """
     Update an existing user's password.
     """
-    logger.info(f"Password update attempt for user: {user.username}")
+    logger.info("Password update attempt for user: %s", user.username)
     result = auth.update_pw(db, user)
-    logger.info(f"Password update is completed for user {user.username}")
+    logger.info("Password update is completed for user %s", user.username)
     return result
 
 
@@ -83,7 +83,7 @@ def delete_user(user: schemas.DeleteUser, db: Session = Depends(get_db)):
     """
     Delete a user account from the system.
     """
-    logger.info(f"Deletion attempt for user: {user.username}")
+    logger.info("Deletion attempt for user: %s", user.username)
     result = auth.delete_user(db, user)
-    logger.info(f"Deletion is completed for user {user.username}")
+    logger.info("Deletion is completed for user %s", user.username)
     return result

@@ -10,12 +10,12 @@ into a dedicated gateway log file for monitoring and debugging.
 """
 
 import os
-import httpx
 import logging
-from fastapi import APIRouter, Request, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
 from typing import List
 from io import BytesIO
+import httpx
+from fastapi import APIRouter, Request, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -60,7 +60,8 @@ async def register_user(request: Request):
 
     # Forward registration data to the user service
     async with httpx.AsyncClient() as client:
-        response = await client.post(f"{USER_SERVICE}/register", json=await request.json())
+        response = await client.post(f"{USER_SERVICE}/register",
+                                     json=await request.json())
 
     logger.info("User registration status: %s", response.status_code)
     return JSONResponse(content=response.json(), status_code=response.status_code)
@@ -100,7 +101,8 @@ async def update_pw(request: Request):
     logger.info("User password update request received")
 
     async with httpx.AsyncClient() as client:
-        response = await client.put(f"{USER_SERVICE}/register", json=await request.json())
+        response = await client.put(f"{USER_SERVICE}/register",
+                                    json=await request.json())
 
     logger.info("Password update status: %s", response.status_code)
     return JSONResponse(content=response.json(), status_code=response.status_code)
@@ -121,10 +123,12 @@ async def delete_user(request: Request):
     logger.warning("User deletion requested by: %s", user_id)
 
     async with httpx.AsyncClient() as client:
-        response_user = await client.post(f"{USER_SERVICE}/register/delete", json=await request.json())
+        response_user = await client.post(f"{USER_SERVICE}/register/delete",
+                                          json=await request.json())
 
     logger.info("User delete status: %s", response_user.status_code)
-    return JSONResponse(content=response_user.json(), status_code=response_user.status_code)
+    return JSONResponse(content=response_user.json(),
+                        status_code=response_user.status_code)
 
 
 @router.post("/upload_cvs")
@@ -155,7 +159,8 @@ async def upload_cvs(files: List[UploadFile] = File(...)):
         if not content:
             logger.warning("Empty file uploaded: %s", file.filename)
             raise HTTPException(status_code=400, detail=f"{file.filename} is empty.")
-        files_to_send.append(("files", (file.filename, BytesIO(content), file.content_type)))
+        files_to_send.append(("files", (file.filename,
+                                        BytesIO(content), file.content_type)))
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
@@ -165,11 +170,13 @@ async def upload_cvs(files: List[UploadFile] = File(...)):
 
     except httpx.ReadTimeout:
         logger.error("ETL service timed out after 2 minutes.")
-        raise HTTPException(status_code=504, detail="ETL service timed out after 2 minutes.")
+        raise HTTPException(status_code=504,
+                            detail="ETL service timed out after 2 minutes.")
 
     except Exception as e:
         # Logs the full traceback for debugging
         logger.exception("ETL service request failed: %s", str(e))
-        raise HTTPException(status_code=500, detail=f"ETL service request failed: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"ETL service request failed: {str(e)}")
 
     return JSONResponse(content=result, status_code=response.status_code)

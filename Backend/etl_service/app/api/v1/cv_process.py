@@ -40,17 +40,19 @@ async def check_api_key_async(api_key):
         try:
             response = await client.post(API_URL, headers=headers, json=payload)
             if response.status_code == 200:
-                logger.info(f"API key validated successfully: {api_key[:8]}********")
+                logger.info(
+                    "API key validated successfully: %s********", api_key[:8])
                 return api_key
 
             logger.warning(
-                f"API key might be invalid or rate-limited: {api_key[:8]}******** | "
-                f"Status: {response.status_code}"
+                "API key might be invalid or rate-limited: %s******** | Status: %s",
+                api_key[:8],
+                response.status_code,
             )
             return None
 
         except Exception as e:
-            logger.error(f"API key check failed for {api_key[:8]}******** — {e}")
+            logger.error("API key check failed for %s******** — %s", api_key[:8], e)
             return None
 
 
@@ -69,11 +71,12 @@ async def get_active_api_key(force_refresh=False):
         if valid_key:
             _active_api_key = valid_key
             _key_checked_at = datetime.now()
-            logger.info(f"Using API key: {valid_key[:8]}*****")
+            logger.info("Using API key: %s*****", valid_key[:8])
             return valid_key
 
         logger.warning(
-            f"API key {key[:8]}**** is invalid or rate-limited, checking next...")
+            "API key %s**** is invalid or rate-limited, checking next...",
+            key[:8])
 
     logger.critical("All API keys are invalid or rate-limited.")
     raise RuntimeError("All API keys are invalid or rate-limited.")
@@ -132,7 +135,7 @@ CVAlyze AI Data Automation System
         )
         logger.info("Email notification sent successfully!")
     except Exception as e:
-        logger.exception(f"Error sending email: {e}")
+        logger.exception("Error sending email: %s", e)
 
 
 # ------------------ BigQuery Upload ------------------
@@ -151,7 +154,7 @@ def _load_to_bigquery_sync(df):
         autodetect=True,
     )
 
-    logger.info(f"Uploading {len(df)} CV records to BigQuery table: {table_id}")
+    logger.info("Uploading %d CV records to BigQuery table: %s", len(df), table_id)
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
     job.result()
     logger.info("BigQuery upload completed successfully.")
@@ -168,10 +171,10 @@ async def process_single_cv(filename, file_stream, extractor):
     """Process a single CV file and extract structured data."""
     try:
         text = clean_text(extract_text(file_stream, filename))
-        logger.debug(f"Extracted text successfully from {filename}")
+        logger.debug("Extracted text successfully from %s", filename)
         return extractor.extract(text)
     except Exception as e:
-        logger.exception(f"Error processing file {filename}: {e}")
+        logger.exception("Error processing file %s: %s", filename, e)
         return {"error": str(e), "file": filename}
 
 
@@ -179,7 +182,7 @@ async def process_cvs(files):
     """
     Process uploaded CV files and return structured JSON with additional info.
     """
-    logger.info(f"Starting processing of {len(files)} CV files...")
+    logger.info("Starting processing of %d CV files...", len(files))
     api_key = await get_active_api_key()
 
     extractor = CvExtractor(api_key)
@@ -201,7 +204,8 @@ async def process_cvs(files):
 
     if not df.empty:
         # Latitude, Longitude, Country and Gender Enrichment
-        logger.info(f"Enriching data with geolocation and gender for {len(df)} candidates.")
+        logger.info("Enriching data with geolocation and gender for %d candidates.",
+                    len(df))
         df[['latitude', 'longitude', 'country']] = df['location'].apply(
             lambda loc: pd.Series(get_lat_lon(loc))
         )

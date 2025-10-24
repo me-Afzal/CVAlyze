@@ -1,12 +1,13 @@
 """Authentication and user management functions for the user service."""
 import os
+import time
 from sqlalchemy.orm import Session
-from app.api.v1 import models,schemas
 from fastapi import HTTPException
 from passlib.context import CryptContext
 from jose import jwt
 from dotenv import load_dotenv
-import time
+from app.api.v1 import models,schemas
+
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ def register_user(db: Session,user: schemas.UserCreate):
     """Register a new user in the database."""
     user_exist=db.query(models.User).filter(models.User.username==user.username).first()
     if user_exist:
-        raise HTTPException(409,detail='User already exist') 
+        raise HTTPException(409,detail='User already exist')
     hashed_pw=pwd_context.hash(user.password)
     db_user=models.User(username=user.username,password=hashed_pw)
     db.add(db_user)
