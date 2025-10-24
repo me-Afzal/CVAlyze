@@ -5,3 +5,4 @@ og_cv/
 cv/
 **/.env
 Backend/etl_service/gcp_key.json
+Backend/docker-compose.yml
