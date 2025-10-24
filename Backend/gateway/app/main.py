@@ -10,7 +10,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, FileResponse,PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
-from jose import jwt, JWTError
+from jose import jwt
+from jose import JWTError
 from dotenv import load_dotenv
 from app.api.v1.routes import router as v1_router
 from jose import jwt,JWTError
