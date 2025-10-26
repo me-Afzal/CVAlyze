@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cv-etl-deployment
+  namespace: cvalyze
+  labels:
+    app: cv-etl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cv-etl
+  template:
+    metadata:
+      labels:
+        app: cv-etl
+    spec:
+      containers:
+        - name: cv-etl
+          image: afzal23/cv_etl_service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8002
+          envFrom:
+            - configMapRef:
+                name: etl-env
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /app/gcp_key.json
+          volumeMounts:
+            - name: gcp-key-vol
+              mountPath: /app/gcp_key.json
+              subPath: gcp_key.json
+              readOnly: true
+      volumes:
+        - name: gcp-key-vol
+          secret:
+            secretName: gcp-key
+            items:
+              - key: gcp_key.json
+                path: gcp_key.json

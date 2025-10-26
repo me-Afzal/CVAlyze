@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cv-user-deployment
+  namespace: cvalyze
+  labels:
+    app: cv-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cv-user
+  template:
+    metadata:
+      labels:
+        app: cv-user
+    spec:
+      containers:
+        - name: cv-user
+          image: afzal23/cv_user_service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: user-env
+          readinessProbe:
+            httpGet:
+              path: /api/v1/
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10

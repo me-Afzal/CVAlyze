@@ -38,8 +38,8 @@ logging.basicConfig(
 logger = logging.getLogger("gateway")
 
 # Service URLs
-USER_SERVICE = "http://cv_user_service:8001/"
-ETL_SERVICE = "http://cv_etl_service:8002/"
+USER_SERVICE = "http://cv-user-service:8001/"
+ETL_SERVICE = "http://cv-etl-service:8002/"
 
 # ------------------ Logging Setup ------------------
 LOG_FILE_PATH = "gateway_logs.log"
@@ -109,10 +109,13 @@ async def token_auth_middleware(request: Request, call_next):
         "/openapi.json",
         "/metrics",
         "/api/v1/register",
-        "/api/v1/login"
+        "/api/v1/login",
+        "/api/v1/health",
     ]
 
-    if request.url.path in open_paths:
+    path = request.url.path.rstrip("/")
+
+    if any(path == p or path == p.rstrip("/") for p in open_paths):
         return await call_next(request)
 
     if request.method == "OPTIONS":

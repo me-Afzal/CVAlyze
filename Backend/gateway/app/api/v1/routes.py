@@ -29,8 +29,8 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 # Service URLs (can be updated when deployed in Kubernetes)
-USER_SERVICE = "http://cv_user_service:8001/api/v1"
-ETL_SERVICE = "http://cv_etl_service:8002/api/v1"
+USER_SERVICE = "http://cv-user-service:8001/api/v1"
+ETL_SERVICE = "http://cv-etl-service:8002/api/v1"
 
 # Create a router instance for API version v1
 router = APIRouter()
@@ -43,6 +43,14 @@ def root():
     """
     logger.info("Gateway v1 root accessed")
     return {"message": "Welcome to CVAlyze API Gateway v1"}
+
+@router.get("/health")
+def health_check():
+    """
+    Health check endpoint for the API Gateway v1.
+    """
+    logger.info("Gateway v1 health check accessed")
+    return {"status": "healthy"}
 
 
 @router.post("/register")

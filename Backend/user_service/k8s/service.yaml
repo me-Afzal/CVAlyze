@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cv-user-service
+  namespace: cvalyze
+  labels:
+    app: cv-user
+spec:
+  selector:
+    app: cv-user
+  ports:
+    - port: 8001
+      targetPort: 8001
+      protocol: TCP
