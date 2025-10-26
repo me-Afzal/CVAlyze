@@ -14,11 +14,15 @@ spec:
     metadata:
       labels:
         app: cv-user
+      annotations:         
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8001"
     spec:
       containers:
         - name: cv-user
           image: afzal23/cv_user_service:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8001
           envFrom:
@@ -26,7 +30,7 @@ spec:
                 name: user-env
           readinessProbe:
             httpGet:
-              path: /api/v1/
+              path: /api/v1
               port: 8001
             initialDelaySeconds: 5
             periodSeconds: 10

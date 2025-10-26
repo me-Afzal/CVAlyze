@@ -3,17 +3,22 @@ global:
   evaluation_interval: 10s
 
 scrape_configs:
-  - job_name: "cv_gateway"
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["cv_gateway:8000"]
-
-  - job_name: "cv_user_service"
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["cv_user_service:8001"]
-
-  - job_name: "cv_etl_service"
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["cv_etl_service:8002"]
+  - job_name: "kubernetes-pods"
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - cvalyze
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
+        action: replace
+        regex: (.+);(.+)
+        replacement: ${2}:${1}
+        target_label: __address__

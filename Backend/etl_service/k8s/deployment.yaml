@@ -14,11 +14,15 @@ spec:
     metadata:
       labels:
         app: cv-etl
+      annotations:       
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8002"
     spec:
       containers:
         - name: cv-etl
           image: afzal23/cv_etl_service:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8002
           envFrom:
