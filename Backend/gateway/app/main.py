@@ -86,7 +86,7 @@ logger.info("Starting Gateway Service")
 # ------------------ Lifespan for Redis for Rate limit ------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic
+    """Startup logic"""
     redis_conn = await redis.from_url(
         "redis://redis.cvalyze.svc.cluster.local:6379",
         encoding="utf-8",

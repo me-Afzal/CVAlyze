@@ -4,6 +4,7 @@ import os
 import time
 import pytest
 from fastapi.testclient import TestClient
+from fastapi_limiter import FastAPILimiter
 from jose import jwt
 from dotenv import load_dotenv
 
@@ -11,6 +12,14 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from app.main import app
+
+# -------------------- Disable Rate Limiter in CI --------------------
+@pytest.fixture(scope="session", autouse=True)
+def disable_rate_limiter(monkeypatch):
+    """Mock FastAPILimiter init and call for CI/CD testing."""
+    monkeypatch.setattr(FastAPILimiter, "init", lambda *a, **kw: None)
+    monkeypatch.setattr(FastAPILimiter, "close", lambda *a, **kw: None)
+    monkeypatch.setattr(FastAPILimiter, "__call__", lambda *a, **kw: None)
 
 # Load env variables
 load_dotenv()
