@@ -28,9 +28,4 @@ spec:
           envFrom:
             - configMapRef:
                 name: user-env
-          readinessProbe:
-            httpGet:
-              path: /api/v1
-              port: 8001
-            initialDelaySeconds: 5
-            periodSeconds: 10
+          

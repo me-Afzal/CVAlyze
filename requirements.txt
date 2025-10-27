@@ -25,3 +25,5 @@ pdfplumber
 python-docx
 geopy
 genderize
+fastapi-limiter
+aioredis

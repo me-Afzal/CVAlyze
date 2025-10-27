@@ -4,11 +4,15 @@ Handles routing, authentication, and logging for incoming API requests."""
 import os
 import logging
 from datetime import datetime
+from contextlib import asynccontextmanager
 import httpx
 import pytz
-from fastapi import FastAPI, Request
+import aioredis
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse, FileResponse,PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
 from prometheus_fastapi_instrumentator import Instrumentator
 from jose import jwt
 from jose import JWTError
@@ -79,10 +83,29 @@ logging.getLogger("uvicorn").setLevel(logging.WARNING)
 
 logger.info("Starting Gateway Service")
 
+# ------------------ Lifespan for Redis for Rate limit ------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    redis = await aioredis.from_url(
+        "redis://redis.cvalyze.svc.cluster.local:6379",
+        encoding="utf-8",
+        decode_responses=True
+    )
+    await FastAPILimiter.init(redis)
+    logger.info("Redis connected for rate limiting")
+
+    yield  # App runs here
+
+    # Shutdown logic
+    await redis.close()
+    logger.info("Redis connection closed")
+
 # ------------------ FastAPI App ------------------
 app = FastAPI(
     title="CVAlyze API Gateway",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 Instrumentator().instrument(app).expose(app)
@@ -142,9 +165,12 @@ async def token_auth_middleware(request: Request, call_next):
 
 
 # ------------------ Routers ------------------
-app.include_router(v1_router, prefix="/api/v1")
+app.include_router(v1_router,
+                   prefix="/api/v1",
+                   dependencies=[Depends(RateLimiter(times=100,
+                                                     seconds=60))])
 
-
+# ------------------ Root Endpoint -----------------
 @app.get("/")
 def root():
     """Root endpoint for the API Gateway."""
