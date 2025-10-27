@@ -1,0 +1,32 @@
+2025-10-27 15:51:06 [INFO] gateway: Starting Gateway Service
+2025-10-27 15:51:11 [INFO] gateway: Authenticated user: testuser -> /
+2025-10-27 15:51:11 [INFO] gateway: Gateway root accessed
+2025-10-27 15:51:11 [INFO] gateway: Authenticated user: testuser -> /api/v1/
+2025-10-27 15:51:12 [INFO] gateway: Authenticated user: testuser -> /api/v1/upload_cvs
+2025-10-27 15:54:33 [INFO] gateway: Starting Gateway Service
+2025-10-27 15:54:33 [INFO] gateway: Authenticated user: testuser -> /
+2025-10-27 15:54:33 [INFO] gateway: Gateway root accessed
+2025-10-27 15:54:33 [INFO] gateway: Authenticated user: testuser -> /api/v1/
+2025-10-27 15:54:33 [INFO] gateway: Authenticated user: testuser -> /api/v1/upload_cvs
+2025-10-27 15:56:31 [INFO] gateway: Starting Gateway Service
+2025-10-27 15:56:31 [INFO] gateway: Authenticated user: testuser -> /
+2025-10-27 15:56:31 [INFO] gateway: Gateway root accessed
+2025-10-27 15:56:31 [INFO] gateway: Authenticated user: testuser -> /api/v1/
+2025-10-27 15:56:31 [INFO] gateway: Authenticated user: testuser -> /api/v1/upload_cvs
+2025-10-27 15:57:30 [INFO] gateway: Starting Gateway Service
+2025-10-27 15:57:30 [INFO] gateway: Authenticated user: testuser -> /
+2025-10-27 15:57:30 [INFO] gateway: Gateway root accessed
+2025-10-27 15:57:30 [INFO] gateway: Authenticated user: testuser -> /api/v1/
+2025-10-27 15:57:30 [INFO] gateway: Authenticated user: testuser -> /api/v1/upload_cvs
+2025-10-27 15:58:26 [INFO] gateway: Starting Gateway Service
+2025-10-27 15:58:26 [INFO] gateway: Authenticated user: testuser -> /
+2025-10-27 15:58:26 [INFO] gateway: Gateway root accessed
+2025-10-27 15:58:26 [INFO] gateway: Authenticated user: testuser -> /api/v1/
+2025-10-27 15:58:26 [INFO] gateway: Gateway v1 root accessed
+2025-10-27 15:58:26 [INFO] gateway: Authenticated user: testuser -> /api/v1/upload_cvs
+2025-10-27 15:58:38 [INFO] gateway: Starting Gateway Service
+2025-10-27 15:58:38 [INFO] gateway: Authenticated user: testuser -> /
+2025-10-27 15:58:38 [INFO] gateway: Gateway root accessed
+2025-10-27 15:58:38 [INFO] gateway: Authenticated user: testuser -> /api/v1/
+2025-10-27 15:58:38 [INFO] gateway: Gateway v1 root accessed
+2025-10-27 15:58:38 [INFO] gateway: Authenticated user: testuser -> /api/v1/upload_cvs

@@ -15,16 +15,44 @@ from app.main import app
 
 # -------------------- Disable Rate Limiter in CI --------------------
 @pytest.fixture(autouse=True)
-def disable_rate_limiter(monkeypatch):
-    """Mock FastAPILimiter init and call for CI/CD testing."""
+def mock_rate_limiter(monkeypatch):
+    """
+    Fully mock FastAPILimiter for unit tests — bypass Redis and rate limits.
+    Prevents 'You must call FastAPILimiter.init' and 'evalsha' errors.
+    """
+    # Pretend limiter is initialized
     monkeypatch.setattr(FastAPILimiter, "init", lambda *a, **kw: None)
     monkeypatch.setattr(FastAPILimiter, "close", lambda *a, **kw: None)
+
+    # ✅ Mock Redis-like async client
+    class MockRedis:
+        async def evalsha(self, *args, **kwargs):
+            return None  # Simulate successful Redis script execution
+
+    mock_redis = MockRedis()
+    monkeypatch.setattr(FastAPILimiter, "redis", mock_redis)
+
+    # ✅ Async identifier
+    async def mock_identifier(request):
+        return "test-user"
+
+    # ✅ Async callback
+    async def mock_http_callback(request, response, pexpire):
+        return None
+
+    monkeypatch.setattr(FastAPILimiter, "identifier", mock_identifier)
+    monkeypatch.setattr(FastAPILimiter, "http_callback", mock_http_callback)
+
+    # ✅ Disable RateLimiter dependency entirely
     monkeypatch.setattr(FastAPILimiter, "__call__", lambda *a, **kw: None)
 
-# Load env variables
+    yield
+
+
+# -------------------- Load Env and Setup JWT --------------------
 load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY")
-TEST_USERNAME = os.getenv("TEST_USERNAME")
+SECRET_KEY = os.getenv("SECRET_KEY", "testsecret")
+TEST_USERNAME = os.getenv("TEST_USERNAME", "testuser")
 ALGORITHM = "HS256"
 
 # Generate JWT token for testuser, valid for 1 day
@@ -38,10 +66,8 @@ auth_headers = {"Authorization": f"Bearer {token}"}
 client = TestClient(app)
 
 
-@pytest.mark.parametrize("path", [
-    "/", 
-    "/api/v1/",
-])
+# -------------------- Tests --------------------
+@pytest.mark.parametrize("path", ["/", "/api/v1/"])
 def test_root_endpoints(path):
     """Test root endpoints for Gateway service."""
     response = client.get(path, headers=auth_headers)
