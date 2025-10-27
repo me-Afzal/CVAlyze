@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from app.main import app
 
 # -------------------- Disable Rate Limiter in CI --------------------
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(autouse=True)
 def disable_rate_limiter(monkeypatch):
     """Mock FastAPILimiter init and call for CI/CD testing."""
     monkeypatch.setattr(FastAPILimiter, "init", lambda *a, **kw: None)
