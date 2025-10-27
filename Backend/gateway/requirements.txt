@@ -9,4 +9,4 @@ typing-extensions
 python-multipart  
 pytz
 fastapi-limiter
-aioredis
+redis

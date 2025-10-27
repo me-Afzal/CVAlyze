@@ -7,7 +7,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 import httpx
 import pytz
-import aioredis
+import redis.asyncio as redis
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse, FileResponse,PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -87,18 +87,18 @@ logger.info("Starting Gateway Service")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
-    redis = await aioredis.from_url(
+    redis_conn = await redis.from_url(
         "redis://redis.cvalyze.svc.cluster.local:6379",
         encoding="utf-8",
         decode_responses=True
     )
-    await FastAPILimiter.init(redis)
+    await FastAPILimiter.init(redis_conn)
     logger.info("Redis connected for rate limiting")
 
     yield  # App runs here
 
     # Shutdown logic
-    await redis.close()
+    await redis_conn.close()
     logger.info("Redis connection closed")
 
 # ------------------ FastAPI App ------------------

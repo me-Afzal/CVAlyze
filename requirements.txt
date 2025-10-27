@@ -26,4 +26,4 @@ python-docx
 geopy
 genderize
 fastapi-limiter
-aioredis
+redis
