@@ -24,7 +24,7 @@ def mock_rate_limiter(monkeypatch):
     monkeypatch.setattr(FastAPILimiter, "init", lambda *a, **kw: None)
     monkeypatch.setattr(FastAPILimiter, "close", lambda *a, **kw: None)
 
-    # ✅ Mock Redis-like async client
+    # Mock Redis-like async client
     class MockRedis:
         async def evalsha(self, *args, **kwargs):
             return None  # Simulate successful Redis script execution
@@ -32,18 +32,18 @@ def mock_rate_limiter(monkeypatch):
     mock_redis = MockRedis()
     monkeypatch.setattr(FastAPILimiter, "redis", mock_redis)
 
-    # ✅ Async identifier
+    # Async identifier
     async def mock_identifier(request):
         return "test-user"
 
-    # ✅ Async callback
+    # Async callback
     async def mock_http_callback(request, response, pexpire):
         return None
 
     monkeypatch.setattr(FastAPILimiter, "identifier", mock_identifier)
     monkeypatch.setattr(FastAPILimiter, "http_callback", mock_http_callback)
 
-    # ✅ Disable RateLimiter dependency entirely
+    # Disable RateLimiter dependency entirely
     monkeypatch.setattr(FastAPILimiter, "__call__", lambda *a, **kw: None)
 
     yield
