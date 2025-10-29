@@ -1,0 +1,2 @@
+2025-10-28 19:51:50 [INFO] gateway: Starting Gateway Service
+2025-10-28 19:51:50,158 [INFO] Starting Gateway Service

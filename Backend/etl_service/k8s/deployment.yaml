@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: cv-etl
-          image: afzal23/cv_etl_service:latest
+          image: afzal23/cv_etl_service:v2
           imagePullPolicy: Always
           ports:
             - containerPort: 8002

@@ -4,11 +4,12 @@ Handles routing, authentication, and logging for incoming API requests."""
 import os
 import logging
 from datetime import datetime
+from typing import List
 from contextlib import asynccontextmanager
 import httpx
 import pytz
 import redis.asyncio as redis
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, Query, HTTPException
 from fastapi.responses import JSONResponse, FileResponse,PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_limiter import FastAPILimiter
@@ -46,7 +47,7 @@ USER_SERVICE = "http://cv-user-service:8001/"
 ETL_SERVICE = "http://cv-etl-service:8002/"
 
 # ------------------ Logging Setup ------------------
-LOG_FILE_PATH = "gateway_logs.log"
+LOG_FILE = "gateway_logs.log"
 
 class ISTFormatter(logging.Formatter):
     """ Custom logging formatter to convert timestamps to IST timezone. """
@@ -59,7 +60,7 @@ class ISTFormatter(logging.Formatter):
         return dt.isoformat()
 
 # Handlers
-file_handler = logging.FileHandler(LOG_FILE_PATH, mode="a", encoding="utf-8")
+file_handler = logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
 file_handler.setFormatter(ISTFormatter(
     fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
@@ -179,30 +180,89 @@ def root():
 
 
 # ------------------ Log Retrieval Endpoint ------------------
+def read_log_lines(file_path: str, limit: int, offset: int) -> List[str]:
+    """Read logs from end of file with pagination (latest first)."""
+    lines = []
+    with open(file_path, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        buffer = bytearray()
+        position = f.tell()
+        line_count = 0
+        skipped = 0
+
+        while position >= 0:
+            f.seek(position)
+            char = f.read(1)
+            if char == b"\n":
+                if buffer:
+                    if skipped < offset:
+                        skipped += 1
+                    else:
+                        lines.append(buffer.decode("utf-8", errors="ignore")[::-1])
+                        line_count += 1
+                        if line_count >= limit:
+                            break
+                    buffer.clear()
+            else:
+                buffer.extend(char)
+            position -= 1
+
+        # Handle first line (no trailing newline)
+        if buffer and line_count < limit and skipped >= offset:
+            lines.append(buffer.decode("utf-8")[::-1])
+
+    return lines
+
+
 @app.get("/logs")
-def get_logs():
+def get_logs(
+    limit: int = Query(100, ge=1, le=1000, description="Number of lines to return"),
+    offset: int = Query(0, ge=0, description="Number of lines to skip from the end")
+):
     """
-    Retrieve the gateway logs (for monitoring/debugging).
+    Retrieve paginated application logs (latest first).
+
+    Args:
+        limit (int): Number of log lines to return (default 100)
+        offset (int): Number of lines to skip from the end (for pagination)
+
+    Returns:
+        JSON: Latest log lines with metadata for pagination.
     """
+    if not os.path.exists(LOG_FILE):
+        logger.warning("Attempted access to missing log file.")
+        raise HTTPException(status_code=404, detail="Log file not found.")
+
     try:
-        logger.info("Log file accessed by client.")
-        return FileResponse(LOG_FILE_PATH, media_type="text/plain",
-                            filename="gateway_logs.log")
-    except Exception:
-        raise JSONResponse(status_code=404, content={"detail": "Log file not found"})
+        log_lines = read_log_lines(LOG_FILE, limit, offset)
+        total_lines = sum(1 for _ in open(LOG_FILE, "r", encoding="utf-8"))
+    except Exception as e:
+        logger.error(f"Error reading log file: {e}")
+        raise HTTPException(status_code=500, detail="Error reading log file.")
+
+    logger.info(f"Log file accessed (limit={limit}, offset={offset}).")
+
+    return {
+        "limit": limit,
+        "offset": offset,
+        "has_more": (offset + limit) < total_lines,
+        "logs": log_lines
+    }
 
 # ------------------ Logs from other services ------------------
 @app.get("/logs/user")
-async def get_user_service_logs():
+async def get_user_service_logs(offset: int = 0, limit: int = 100):
     """
     Fetch logs from the User Service via its /logs endpoint.
     """
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(f"{USER_SERVICE}logs")
+            response = await client.get(f"{USER_SERVICE}logs",
+                                        params={"offset": offset, "limit": limit})
             response.raise_for_status()
-            return PlainTextResponse(content=response.text,
-                                     media_type="text/plain")
+            # Return JSON structure directly
+            return JSONResponse(content=response.json(),
+                                status_code=response.status_code)
     except httpx.RequestError as e:
         logger.error("Error fetching User Service logs: %s", e)
         return JSONResponse(status_code=503,
@@ -214,16 +274,18 @@ async def get_user_service_logs():
 
 
 @app.get("/logs/etl")
-async def get_etl_service_logs():
+async def get_etl_service_logs(offset: int = 0, limit: int = 100):
     """
     Fetch logs from the ETL Service via its /logs endpoint.
     """
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(f"{ETL_SERVICE}logs")
+            response = await client.get(f"{ETL_SERVICE}logs",
+                                        params={"offset": offset, "limit": limit})
             response.raise_for_status()
-            return PlainTextResponse(content=response.text,
-                                     media_type="text/plain")
+            # Return JSON structure directly
+            return JSONResponse(content=response.json(),
+                                status_code=response.status_code)
     except httpx.RequestError as e:
         logger.error("Error fetching ETL Service logs: %s", e)
         return JSONResponse(status_code=503,
