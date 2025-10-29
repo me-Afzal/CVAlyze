@@ -30,13 +30,13 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 # ------------------ Logging Setup ------------------
-LOG_FILE_PATH = "gateway_logs.txt"
+LOG_FILE = "gateway_logs.log"
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(LOG_FILE_PATH),
+        logging.FileHandler(LOG_FILE),
         logging.StreamHandler()
     ]
 )
@@ -47,7 +47,7 @@ USER_SERVICE = "http://cv-user-service:8001/"
 ETL_SERVICE = "http://cv-etl-service:8002/"
 
 # ------------------ Logging Setup ------------------
-LOG_FILE = "gateway_logs.log"
+
 
 class ISTFormatter(logging.Formatter):
     """ Custom logging formatter to convert timestamps to IST timezone. """
