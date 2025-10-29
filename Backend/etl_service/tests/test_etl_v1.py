@@ -71,4 +71,4 @@ def test_logs_endpoint_exists():
     """Test that /logs endpoint returns the log file."""
     response = client.get("/logs")
     assert response.status_code == 200
-    assert response.headers["content-type"].startswith("text/plain")
+    assert response.headers["content-type"].startswith("application/json")
