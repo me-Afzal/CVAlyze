@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import List
 import pytz
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from app.api.v1.routes import router as v1_router
@@ -62,6 +63,14 @@ Instrumentator().instrument(app).expose(app)
 # Include versioned router
 app.include_router(v1_router, prefix="/api/v1")
 
+# Cors middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173","http://localhost:5500"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ------------------ Endpoints ------------------
 @app.get("/")

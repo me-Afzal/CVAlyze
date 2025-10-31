@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: cv-user
-          image: afzal23/cv_user_service:v2
+          image: afzal23/cv_user_service:v4
           imagePullPolicy: Always
           ports:
             - containerPort: 8001

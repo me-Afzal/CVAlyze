@@ -171,15 +171,15 @@ async def upload_cvs(files: List[UploadFile] = File(...)):
                                         BytesIO(content), file.content_type)))
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
             response = await client.post(f"{ETL_SERVICE}/upload_cvs", files=files_to_send)
             result = response.json()
         logger.info("ETL upload successful with status code: %s", response.status_code)
 
     except httpx.ReadTimeout:
-        logger.error("ETL service timed out after 2 minutes.")
+        logger.error("ETL service timed out after 5 minutes.")
         raise HTTPException(status_code=504,
-                            detail="ETL service timed out after 2 minutes.")
+                            detail="ETL service timed out after 5 minutes.")
 
     except Exception as e:
         # Logs the full traceback for debugging

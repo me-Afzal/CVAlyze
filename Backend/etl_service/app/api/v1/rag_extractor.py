@@ -11,21 +11,38 @@ class CvExtractor:
 
     # ---------- Post-process empty lists as None ----------
     def clean_empty_lists_as_none(self, data):
-        """Convert empty lists or lists with only null/None to None."""
+        """Convert empty lists or lists with only null/None to None.
+        Also ensure projects[].links is always a list (never None) to match BigQuery schema.
+        """
         for key, value in data.items():
             if value is None:
                 continue
-            if isinstance(value, str) and value.strip().lower() == "null":
-                data[key] = None
-            elif isinstance(value, str) and value.strip() == "":
-                data[key] = None
+
+            # Handle string "null" or empty string
+            if isinstance(value, str):
+                if value.strip().lower() == "null" or value.strip() == "":
+                    data[key] = None
+
+            # Handle lists
             elif isinstance(value, list):
-                # Check if list is empty or contains only null/None
+                # Fix projects[].links inside the 'projects' field
+                if key == "projects":
+                    for project in value:
+                        if isinstance(project, dict):
+                            # If 'links' key is missing or None, set to []
+                            if "links" not in project or project["links"] in (None, "null", "", []):
+                                project["links"] = []
+                            # If links is string, wrap it into list
+                            elif isinstance(project["links"], str):
+                                project["links"] = [project["links"].strip()]
+
+                # Check if list is empty or contains only null/None values
                 if len(value) == 0:
                     data[key] = None
                 elif all((v is None) or (
                     isinstance(v, str) and v.strip().lower() == "null") for v in value):
                     data[key] = None
+
         return data
 
     # ---------- Normalize GitHub and LinkedIn links ----------
