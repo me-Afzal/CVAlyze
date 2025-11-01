@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileBarChart, Upload, LogOut, Settings, User, Mail, Lock, Trash2, Eye, EyeOff, MessageCircle, X, Send, BarChart3, Globe, PieChart, Grid, Download, Filter, Search, UserPen } from 'lucide-react';
+import { FileBarChart, Upload, LogOut, Settings, User, Mail, Lock, Trash2, Eye, EyeOff, MessageCircle, X, Send, BarChart3, Globe, PieChart, Grid, Download, Filter, Search, UserPen, ArrowRight, CheckCircle, Users, TrendingUp } from 'lucide-react';
 import * as Plotly from 'plotly.js-dist-min';
 
 // Router Setup
@@ -131,6 +131,144 @@ const LoadingOverlay = () => {
   );
 };
 
+// Welcome Page Component
+const WelcomePage = ({ navigate }) => {
+  const { isAuthenticated } = useAuth(); // Add this to check authentication
+
+  const handleGetStarted = () => {
+    if (isAuthenticated) {
+      navigate('/upload');
+    } else {
+      navigate('/login');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-blue-100 overflow-hidden">
+      {/* Animated background - matching other pages */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-200/40 via-transparent to-transparent"></div>
+
+      {/* Content */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-8">
+        <div className="max-w-5xl w-full">
+          {/* Logo and Title - Reduced size */}
+          <div className="text-center mb-6 animate-fade-in">
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-700 p-4 rounded-2xl shadow-xl shadow-blue-300/50">
+                <FileBarChart className="w-12 h-12 text-white" />
+              </div>
+            </div>
+            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent mb-3 tracking-tight">
+              CVAlyze
+            </h1>
+            <div className="h-1 w-24 bg-gradient-to-r from-blue-300 via-blue-700 to-blue-300 mx-auto mb-4"></div>
+            <p className="text-lg md:text-xl text-blue-800 font-light max-w-3xl mx-auto leading-relaxed">
+              Transform Your Hiring Process with AI-Powered Resume Analysis
+            </p>
+          </div>
+
+          {/* Main Quote Box - Reduced padding */}
+          <div className="bg-white/60 backdrop-blur-xl border border-blue-200 rounded-3xl p-6 md:p-8 mb-8 shadow-2xl">
+            <div className="text-center mb-6">
+              <p className="text-base md:text-lg text-blue-900 font-light italic leading-relaxed">
+                "Upload multiple CVs and resumes to instantly analyze, compare, and discover the best candidates with intelligent insights and comprehensive analytics."
+              </p>
+            </div>
+
+            {/* Features Grid - Reduced padding */}
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 text-center transform hover:scale-105 transition-all hover:shadow-lg">
+                <div className="bg-gradient-to-r from-blue-900 to-blue-700 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <Upload className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-blue-900 font-semibold text-base mb-2">Bulk Upload</h3>
+                <p className="text-blue-700 text-sm">Upload multiple resumes at once</p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 text-center transform hover:scale-105 transition-all hover:shadow-lg">
+                <div className="bg-gradient-to-r from-blue-900 to-blue-700 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <BarChart3 className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-blue-900 font-semibold text-base mb-2">Smart Analytics</h3>
+                <p className="text-blue-700 text-sm">AI-powered insights and comparisons</p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 text-center transform hover:scale-105 transition-all hover:shadow-lg">
+                <div className="bg-gradient-to-r from-blue-900 to-blue-700 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <Users className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-blue-900 font-semibold text-base mb-2">Find Top Talent</h3>
+                <p className="text-blue-700 text-sm">Rank and filter best candidates</p>
+              </div>
+            </div>
+
+            {/* Get Started Button - UPDATED */}
+            <div className="text-center">
+              <button
+                onClick={handleGetStarted}
+                className="group bg-gradient-to-r from-blue-900 to-blue-700 text-white px-10 py-4 rounded-2xl font-bold text-lg hover:from-blue-800 hover:to-blue-600 transition-all transform hover:scale-105 shadow-2xl shadow-blue-300/50 inline-flex items-center space-x-3"
+              >
+                <span>{isAuthenticated ? 'Go to Dashboard' : 'Get Started'}</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+              </button>
+            </div>
+          </div>
+
+          {/* Key Benefits */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="bg-white/60 backdrop-blur-sm border border-blue-200 rounded-2xl p-5 flex items-start space-x-3 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="bg-green-100 border border-green-300 rounded-full p-2 flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-green-700" />
+              </div>
+              <div>
+                <h4 className="text-blue-900 font-semibold mb-1 text-base">Visual Dashboards</h4>
+                <p className="text-blue-700 text-sm">Interactive charts and geographic distribution maps</p>
+              </div>
+            </div>
+
+            <div className="bg-white/60 backdrop-blur-sm border border-blue-200 rounded-2xl p-5 flex items-start space-x-3 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="bg-green-100 border border-green-300 rounded-full p-2 flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-green-700" />
+              </div>
+              <div>
+                <h4 className="text-blue-900 font-semibold mb-1 text-base">AI Assistant</h4>
+                <p className="text-blue-700 text-sm">Chat with AI to get candidate recommendations</p>
+              </div>
+            </div>
+
+            <div className="bg-white/60 backdrop-blur-sm border border-blue-200 rounded-2xl p-5 flex items-start space-x-3 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="bg-green-100 border border-green-300 rounded-full p-2 flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-green-700" />
+              </div>
+              <div>
+                <h4 className="text-blue-900 font-semibold mb-1 text-base">Skill Matching</h4>
+                <p className="text-blue-700 text-sm">Analyze skills, experience, and qualifications</p>
+              </div>
+            </div>
+
+            <div className="bg-white/60 backdrop-blur-sm border border-blue-200 rounded-2xl p-5 flex items-start space-x-3 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="bg-green-100 border border-green-300 rounded-full p-2 flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-green-700" />
+              </div>
+              <div>
+                <h4 className="text-blue-900 font-semibold mb-1 text-base">Instant Insights</h4>
+                <p className="text-blue-700 text-sm">Get comprehensive candidate profiles in seconds</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer tagline */}
+          <div className="text-center mt-6">
+            <p className="text-blue-700 text-sm">
+              Trusted by HR professionals worldwide • Fast • Accurate • Intelligent
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Login/Register Page
 const AuthPage = ({ navigate }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -188,6 +326,15 @@ const AuthPage = ({ navigate }) => {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-200/40 via-transparent to-transparent"></div>
 
       <div className="relative w-full max-w-md">
+        {/* Back to Welcome */}
+        <button
+          onClick={() => navigate('/welcome')}
+          className="mb-4 text-blue-700 hover:text-blue-900 flex items-center space-x-2"
+        >
+          <ArrowRight className="w-4 h-4 rotate-180" />
+          <span>Back to Welcome</span>
+        </button>
+
         <div className="bg-white/80 backdrop-blur-xl border border-blue-300 rounded-2xl p-8 shadow-2xl shadow-blue-300/50">
           <div className="flex items-center justify-center mb-8">
             <div className="bg-gradient-to-r from-blue-900 to-blue-700 p-3 rounded-xl">
@@ -278,8 +425,11 @@ const UploadPage = ({ navigate }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [error, setError] = useState(''); // Add error state
   const { token, logout } = useAuth();
   const fileInputRef = useRef();
+
+  const MAX_FILES = 40; // Define maximum file limit
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -297,18 +447,42 @@ const UploadPage = ({ navigate }) => {
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFiles(Array.from(e.dataTransfer.files));
+      const selectedFiles = Array.from(e.dataTransfer.files);
+
+      // Check file limit
+      if (selectedFiles.length > MAX_FILES) {
+        setError(`You can only upload a maximum of ${MAX_FILES} files at a time. You selected ${selectedFiles.length} files.`);
+        setFiles([]);
+      } else {
+        setError('');
+        setFiles(selectedFiles);
+      }
     }
   };
 
   const handleFileChange = (e) => {
     if (e.target.files) {
-      setFiles(Array.from(e.target.files));
+      const selectedFiles = Array.from(e.target.files);
+
+      // Check file limit
+      if (selectedFiles.length > MAX_FILES) {
+        setError(`You can only upload a maximum of ${MAX_FILES} files at a time. You selected ${selectedFiles.length} files.`);
+        setFiles([]);
+      } else {
+        setError('');
+        setFiles(selectedFiles);
+      }
     }
   };
 
   const handleUpload = async () => {
     if (files.length === 0) return;
+
+    // Double-check file limit before upload
+    if (files.length > MAX_FILES) {
+      setError(`You can only upload a maximum of ${MAX_FILES} files at a time.`);
+      return;
+    }
 
     setUploading(true);
     const formData = new FormData();
@@ -386,7 +560,15 @@ const UploadPage = ({ navigate }) => {
               Upload CVs for Analysis
             </h1>
             <p className="text-blue-800">Drag and drop or click to select CV files (.pdf, .docx, .txt)</p>
+            <p className="text-blue-700 text-sm mt-2">Maximum {MAX_FILES} files per upload</p>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-xl text-red-700 text-center">
+              <p className="font-semibold">{error}</p>
+            </div>
+          )}
 
           <div
             onDragEnter={handleDrag}
@@ -412,11 +594,14 @@ const UploadPage = ({ navigate }) => {
             <h3 className="text-xl font-semibold text-blue-900 mb-2">Drop CV files here</h3>
             <p className="text-blue-800 mb-4">or click to browse</p>
             <p className="text-sm text-blue-700">Supports PDF, DOCX, and TXT formats</p>
+            <p className="text-sm text-blue-600 mt-2 font-semibold">Max {MAX_FILES} files at a time</p>
           </div>
 
           {files.length > 0 && (
             <div className="mt-8 bg-white/60 backdrop-blur-xl border border-blue-200 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-blue-800 mb-4">Selected Files ({files.length})</h3>
+              <h3 className="text-lg font-semibold text-blue-800 mb-4">
+                Selected Files ({files.length}/{MAX_FILES})
+              </h3>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {files.map((file, idx) => (
                   <div key={idx} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -428,10 +613,10 @@ const UploadPage = ({ navigate }) => {
 
               <button
                 onClick={handleUpload}
-                disabled={uploading}
+                disabled={uploading || files.length === 0 || files.length > MAX_FILES}
                 className="w-full mt-6 py-3 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-xl font-semibold hover:from-blue-800 hover:to-blue-600 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-300/50"
               >
-                Upload and Analyze
+                {files.length > MAX_FILES ? `Too many files (Max ${MAX_FILES})` : 'Upload and Analyze'}
               </button>
             </div>
           )}
@@ -1597,8 +1782,14 @@ const App = () => {
         {(currentPath, navigate) => {
           const { isAuthenticated } = useAuth();
 
+          // Always show welcome page first if on root or /welcome
+          if (currentPath === '/' || currentPath === '/welcome') {
+            return <WelcomePage navigate={navigate} />;
+          }
+
+          // Redirect to welcome if not authenticated and not on login page
           if (!isAuthenticated && currentPath !== '/login') {
-            return <AuthPage navigate={navigate} />;
+            return <WelcomePage navigate={navigate} />;
           }
 
           switch (currentPath) {
@@ -1611,7 +1802,7 @@ const App = () => {
             case '/settings':
               return <SettingsPage navigate={navigate} />;
             default:
-              return <UploadPage navigate={navigate} />;
+              return <WelcomePage navigate={navigate} />;
           }
         }}
       </Router>

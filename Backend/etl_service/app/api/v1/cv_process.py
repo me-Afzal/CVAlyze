@@ -137,6 +137,31 @@ CVAlyze AI Data Automation System
     except Exception as e:
         logger.exception("Error sending email: %s", e)
 
+# ------------------ DataFrame Sanitization ------------------
+def sanitize_dataframe_for_bigquery(df):
+    """Remove null elements from list columns to prevent BigQuery errors."""
+    list_columns = ['skills', 'experience', 'projects', 'certifications', 'achievements', 'education']
+    
+    for col in list_columns:
+        if col in df.columns:
+            if col == 'projects':
+                # Special handling for projects (list of dicts)
+                df[col] = df[col].apply(lambda x: [
+                    {
+                        **project,
+                        'links': [link for link in (project.get('links') or []) 
+                                  if link is not None and link != '' and link != 'null']
+                    }
+                    for project in (x if isinstance(x, list) else [])
+                ] if x else [])
+            else:
+                # For other list columns - filter out null/None/empty strings
+                df[col] = df[col].apply(lambda x: [
+                    item for item in (x if isinstance(x, list) else [])
+                    if item is not None and item != '' and item != 'null'
+                ] if x else [])
+    
+    return df
 
 # ------------------ BigQuery Upload ------------------
 def _load_to_bigquery_sync(df):
@@ -146,7 +171,9 @@ def _load_to_bigquery_sync(df):
     for col in list_columns:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: x if isinstance(x, list) else [])
-
+    # Sanitize to remove any null elements from arrays
+    df = sanitize_dataframe_for_bigquery(df)
+    
     client = bigquery.Client()
     table_id = "project-72dfbe56-9a82-4b81-a1a.cv_warehouse.cv_data"
     job_config = bigquery.LoadJobConfig(

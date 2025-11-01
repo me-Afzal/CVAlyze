@@ -12,7 +12,7 @@ class CvExtractor:
     # ---------- Post-process empty lists as None ----------
     def clean_empty_lists_as_none(self, data):
         """Convert empty lists or lists with only null/None to None.
-        Also ensure projects[].links is always a list (never None) to match BigQuery schema.
+        Also ensure projects[].links is always a list (never None) and contains NO null elements.
         """
         for key, value in data.items():
             if value is None:
@@ -29,12 +29,30 @@ class CvExtractor:
                 if key == "projects":
                     for project in value:
                         if isinstance(project, dict):
-                            # If 'links' key is missing or None, set to []
-                            if "links" not in project or project["links"] in (None, "null", "", []):
+                            # Get links value
+                            links = project.get("links")
+                        
+                            # Case 1: links is None, "null", "", or missing
+                            if links in (None, "null", ""):
                                 project["links"] = []
-                            # If links is string, wrap it into list
-                            elif isinstance(project["links"], str):
-                                project["links"] = [project["links"].strip()]
+                        
+                            # Case 2: links is a string - wrap it
+                            elif isinstance(links, str):
+                                clean_link = links.strip()
+                                project["links"] = [clean_link] if clean_link and clean_link.lower() != "null" else []
+
+                            # Case 3: links is a list - filter out null/None/empty elements
+                            elif isinstance(links, list):
+                                project["links"] = [
+                                    link for link in links 
+                                    if link is not None 
+                                    and link != "null" 
+                                    and (not isinstance(link, str) or link.strip())
+                                ]
+                        
+                            # Case 4: anything else - set to empty list
+                            else:
+                                project["links"] = []
 
                 # Check if list is empty or contains only null/None values
                 if len(value) == 0:
@@ -63,32 +81,29 @@ class CvExtractor:
         """Extract structured CV sections with Prompt Engineering."""
 
         combined_prompt = """
-You are a fast, precise resume information extraction system. Your **ONLY** output must be a single JSON object.
+You are a precise resume extraction system. Extract data as JSON with keys: [name, profession, phone_number, email, location, github_link, linkedin_link, skills, education, experience, projects, certifications, achievements]
 
-**Required JSON Keys:** [name, profession, phone_number, email, location, github_link, linkedin_link, skills, education, experience, projects, certifications, achievements]
+Rules:
+1. Personal Info: String or null. location = contact address only (ignore job/edu locations). Extract first github.com/linkedin.com/in/ URLs.
 
-**Extraction Rules (Minimal Factual Lists - STRICT JSON NULL/ARRAY):**
+2. profession: Title Case format.
+   - Tech: "Role (Technology)" - Full Stack Developer (Python/MERN/MEAN/Java), Frontend Developer (React/Angular/Vue), Backend Developer (Node.js/Python/Java), Mobile Developer (Android/iOS/React Native/Flutter), Data Scientist (AI/ML), Data Analyst, Machine Learning Engineer, DevOps Engineer, Cloud Engineer (AWS/Azure/GCP), Software Engineer, QA Engineer, UI/UX Designer, Product Manager, Business Analyst
+   - Non-tech: Extract as-is in Title Case - Accountant, Hospital Administrator, Chef, Nurse, Teacher, Civil Engineer, Lawyer, Marketing Manager
+   - Remove Senior/Junior/Experienced. Null if unknown.
 
-1.  **Personal Info:** Return concise string value or **null** if missing. **location** must be the personal contact address **ONLY**. **IGNORE** all job/education/project locations.
-    * ***github\_link and linkedin\_link:*** Search the entire text for URLs containing 'github.com' or 'linkedin.com/in/' and extract them. If multiple are found, use the first one. Use **null** if not found.
-2.  **skills:** Extract all technical/professional skills as a **list of strings**. Use **[]** (empty list) if none found.
-3.  **education, experience, certifications, achievements:** Return each as a **list of single-line strings**. **NO SUMMARIES/EXPLANATIONS.**
-    * If a section is missing, return **[]** (empty list).
-    * **education:** Format: [Degree/Program – Institution (Year Range)]. Include all programs/levels.
-    * **experience:** Format: [Role – Organization].
-    * **certifications:** Format: [Certification Title or Issuer]. ***Only include certifications EXPLICITLY listed as such.***
-    * **achievements:** Format: **[Key Result, max 10 words]**. Summarize core action/outcome.
-4.  **'projects' rules (list of objects):**
-    1. Output is **[]** if none. Format: {{"name": "...", "links": [...]}}.
-    2. **"links"** MUST filter appended URLs: **ONLY** project GitHub/demo/Live links.
-    3. **EXCLUDE** contact URLs (LinkedIn, profile GitHub, email). If none, **"links"** = **null**.
+3. skills: List of strings or [].
 
-**Final Mandate (For Maximum Speed and Precision):**
-* Output is **STRICTLY JSON** (no preamble/postscript).
-* **Missing list fields MUST use `[]`. Missing single-value fields MUST use `null`.**
-* Keep all values **EXTREMELY CONCISE AND MINIMAL.**
+4. education/experience/certifications/achievements: List of strings or [].
+   - education: Degree – Institution (Year)
+   - experience: Role – Organization
+   - certifications: Explicit certs only
+   - achievements: Max 10 words, core action/outcome
 
-**Text sections:**
+5. projects: List of {"name": "...", "links": [...]} or []. The "links" list MUST only contain project-specific URLs (GitHub/demo/live). Exclude all other links.** If no project-specific link is found, links = [] if none (never null)
+
+Output: Pure JSON. [] for empty lists, null for missing values. No null in arrays.
+
+Resume Text:
 """
         combined_prompt += text
 
