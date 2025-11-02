@@ -75,8 +75,27 @@ const renderDataItem = (item) => {
   return String(item);
 };
 
-// Enhanced Loading Overlay Component
-const LoadingOverlay = () => {
+// Enhanced Loading Overlay Component with File Progress
+const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction' }) => {
+  const totalFiles = files.length;
+  const baseProgress = totalFiles > 0 ? (currentFileIndex / totalFiles) * 70 : 0; // 70% for file extraction
+
+  const getStageProgress = () => {
+    if (stage === 'extraction') return baseProgress;
+    if (stage === 'feature-engineering') return 70 + 15; // 85%
+    if (stage === 'cleaning') return 85 + 15; // 100%
+    return baseProgress;
+  };
+
+  const progress = getStageProgress();
+
+  const getStageText = () => {
+    if (stage === 'extraction') return 'Extracting CV Data';
+    if (stage === 'feature-engineering') return 'Engineering Features';
+    if (stage === 'cleaning') return 'Cleaning & Finalizing Data';
+    return 'Processing';
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900">
       {/* Animated background particles */}
@@ -87,7 +106,7 @@ const LoadingOverlay = () => {
       </div>
 
       {/* Loading content */}
-      <div className="relative z-10 flex flex-col items-center">
+      <div className="relative z-10 flex flex-col items-center max-w-2xl w-full px-4">
         {/* Spinner */}
         <div className="relative w-32 h-32 mb-8">
           {/* Outer ring */}
@@ -98,33 +117,125 @@ const LoadingOverlay = () => {
           <div className="absolute inset-3 border-8 border-transparent border-b-blue-300 border-l-blue-300 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
           <div className="absolute inset-6 border-8 border-transparent border-t-blue-400 rounded-full animate-spin" style={{ animationDuration: '2s' }}></div>
 
-          {/* Center dot */}
+          {/* Center percentage */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 bg-white rounded-full animate-pulse"></div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-white">{Math.round(progress)}%</div>
+            </div>
           </div>
         </div>
 
         {/* Text */}
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-4 mb-6">
           <h2 className="text-3xl font-bold text-white animate-pulse">
             Processing CVs
           </h2>
           <p className="text-xl text-blue-100">
-            Analyzing resumes with AI...
-          </p>
-          <div className="flex items-center justify-center space-x-2 mt-6">
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce"></div>
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-          </div>
-          <p className="text-sm text-blue-200 mt-4">
-            This may take a moment depending on the number of CVs
+            {getStageText()}
           </p>
         </div>
 
+        {/* Stage Indicator */}
+        <div className="w-full max-w-md mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <div className={`flex items-center space-x-2 ${stage === 'extraction' ? 'text-white' : stage === 'feature-engineering' || stage === 'cleaning' ? 'text-green-300' : 'text-blue-300'}`}>
+              <div className={`w-3 h-3 rounded-full ${stage === 'extraction' ? 'bg-white animate-pulse' : stage === 'feature-engineering' || stage === 'cleaning' ? 'bg-green-300' : 'bg-blue-300'}`}></div>
+              <span className="text-sm font-semibold">File Extraction</span>
+            </div>
+            <div className={`flex items-center space-x-2 ${stage === 'feature-engineering' ? 'text-white' : stage === 'cleaning' ? 'text-green-300' : 'text-blue-300'}`}>
+              <div className={`w-3 h-3 rounded-full ${stage === 'feature-engineering' ? 'bg-white animate-pulse' : stage === 'cleaning' ? 'bg-green-300' : 'bg-blue-300'}`}></div>
+              <span className="text-sm font-semibold">Feature Engineering</span>
+            </div>
+            <div className={`flex items-center space-x-2 ${stage === 'cleaning' ? 'text-white' : 'text-blue-300'}`}>
+              <div className={`w-3 h-3 rounded-full ${stage === 'cleaning' ? 'bg-white animate-pulse' : 'bg-blue-300'}`}></div>
+              <span className="text-sm font-semibold">Cleaning</span>
+            </div>
+          </div>
+        </div>
+
         {/* Progress bar */}
-        <div className="mt-8 w-64 h-2 bg-blue-700/50 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-blue-400 via-white to-blue-400 animate-pulse"></div>
+        <div className="w-full max-w-md mb-6">
+          <div className="h-3 bg-blue-700/50 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-blue-400 via-white to-blue-400 transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <div className="flex justify-between mt-2 text-xs text-blue-200">
+            <span>0%</span>
+            <span>50%</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+        {/* File Progress List */}
+        {stage === 'extraction' && files.length > 0 && (
+          <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-xl p-4 max-h-64 overflow-y-auto">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-white font-semibold">Processing Files</h3>
+              <span className="text-blue-200 text-sm">{currentFileIndex} / {totalFiles}</span>
+            </div>
+            <div className="space-y-2">
+              {files.map((file, index) => (
+                <div
+                  key={index}
+                  className={`flex items-center space-x-3 p-2 rounded-lg transition-all ${index < currentFileIndex
+                    ? 'bg-green-500/20 border border-green-400/30'
+                    : index === currentFileIndex
+                      ? 'bg-blue-500/30 border border-blue-400/50 animate-pulse'
+                      : 'bg-white/5 border border-white/10'
+                    }`}
+                >
+                  {index < currentFileIndex ? (
+                    <CheckCircle className="w-5 h-5 text-green-300 flex-shrink-0" />
+                  ) : index === currentFileIndex ? (
+                    <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                  ) : (
+                    <div className="w-5 h-5 border-2 border-white/30 rounded-full flex-shrink-0"></div>
+                  )}
+                  <span className={`text-sm truncate ${index < currentFileIndex
+                    ? 'text-green-200'
+                    : index === currentFileIndex
+                      ? 'text-white font-semibold'
+                      : 'text-blue-200'
+                    }`}>
+                    {file.name || file}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Feature Engineering / Cleaning Message */}
+        {(stage === 'feature-engineering' || stage === 'cleaning') && (
+          <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-xl p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div>
+                <p className="text-white font-semibold">
+                  {stage === 'feature-engineering' ? 'Engineering Features' : 'Finalizing Data'}
+                </p>
+                <p className="text-blue-200 text-sm">
+                  {stage === 'feature-engineering'
+                    ? 'Analyzing skills, experience, and qualifications...'
+                    : 'Cleaning and preparing your dashboard...'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom info */}
+        <div className="mt-6 text-center">
+          <div className="flex items-center justify-center space-x-2 mb-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+          <p className="text-sm text-blue-200">
+            Please wait while we analyze your CVs
+          </p>
         </div>
       </div>
     </div>
@@ -420,16 +531,20 @@ const AuthPage = ({ navigate }) => {
   );
 };
 
-// Upload Page
+// UploadPage component's handleUpload function
 const UploadPage = ({ navigate }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [error, setError] = useState(''); // Add error state
+  const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState({
+    currentFileIndex: 0,
+    stage: 'extraction' // extraction, feature-engineering, cleaning
+  });
   const { token, logout } = useAuth();
   const fileInputRef = useRef();
 
-  const MAX_FILES = 40; // Define maximum file limit
+  const MAX_FILES = 40;
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -449,7 +564,6 @@ const UploadPage = ({ navigate }) => {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const selectedFiles = Array.from(e.dataTransfer.files);
 
-      // Check file limit
       if (selectedFiles.length > MAX_FILES) {
         setError(`You can only upload a maximum of ${MAX_FILES} files at a time. You selected ${selectedFiles.length} files.`);
         setFiles([]);
@@ -464,7 +578,6 @@ const UploadPage = ({ navigate }) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
 
-      // Check file limit
       if (selectedFiles.length > MAX_FILES) {
         setError(`You can only upload a maximum of ${MAX_FILES} files at a time. You selected ${selectedFiles.length} files.`);
         setFiles([]);
@@ -478,29 +591,66 @@ const UploadPage = ({ navigate }) => {
   const handleUpload = async () => {
     if (files.length === 0) return;
 
-    // Double-check file limit before upload
     if (files.length > MAX_FILES) {
       setError(`You can only upload a maximum of ${MAX_FILES} files at a time.`);
       return;
     }
 
     setUploading(true);
+    setUploadProgress({ currentFileIndex: 0, stage: 'extraction' });
+
+    const totalFiles = files.length;
+    const estimatedTimePerFile = 4000; // 4 seconds per file (for simulation only)
+
+    let progressInterval = null;
+    let isBackendComplete = false;
+
+    // Start progress simulation - but this can be interrupted
+    const startProgressSimulation = () => {
+      let currentIndex = 0;
+
+      progressInterval = setInterval(() => {
+        if (isBackendComplete) {
+          clearInterval(progressInterval);
+          return;
+        }
+
+        if (currentIndex < totalFiles) {
+          currentIndex++;
+          setUploadProgress(prev => ({
+            ...prev,
+            currentFileIndex: currentIndex
+          }));
+        } else {
+          clearInterval(progressInterval);
+        }
+      }, estimatedTimePerFile);
+    };
+
+    startProgressSimulation();
+
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
 
     try {
+      // Make the actual API call
       const response = await fetch(`${API_BASE}/upload_cvs`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
 
+      // Backend responded - stop simulation
+      isBackendComplete = true;
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+
       if (response.status === 401) {
         logout();
         return;
       }
 
-      // Handle 413 - Payload Too Large
       if (response.status === 413) {
         alert('Upload failed: File size too large. Please try uploading fewer files at once or contact support.');
         setUploading(false);
@@ -512,10 +662,30 @@ const UploadPage = ({ navigate }) => {
         throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
       }
 
+      // Move to feature engineering stage (even if files aren't all "shown" as complete)
+      setUploadProgress({ currentFileIndex: totalFiles, stage: 'feature-engineering' });
+
+      // Small delay to show the stage change (0.5 second)
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Move to cleaning stage
+      setUploadProgress({ currentFileIndex: totalFiles, stage: 'cleaning' });
+
+      // Parse response
       const data = await response.json();
+
+      // Small delay to show the cleaning stage (0.5 second)
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Save and navigate
       localStorage.setItem('cv_data', JSON.stringify(data.jsonCv));
       navigate('/dashboard');
+
     } catch (err) {
+      isBackendComplete = true;
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
       console.error('Upload error:', err);
       alert('Upload failed: ' + err.message);
     } finally {
@@ -525,7 +695,13 @@ const UploadPage = ({ navigate }) => {
 
   return (
     <>
-      {uploading && <LoadingOverlay />}
+      {uploading && (
+        <LoadingOverlay
+          files={files}
+          currentFileIndex={uploadProgress.currentFileIndex}
+          stage={uploadProgress.stage}
+        />
+      )}
 
       <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-blue-100">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-200/40 via-transparent to-transparent"></div>
@@ -563,7 +739,6 @@ const UploadPage = ({ navigate }) => {
             <p className="text-blue-700 text-sm mt-2">Maximum {MAX_FILES} files per upload</p>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-xl text-red-700 text-center">
               <p className="font-semibold">{error}</p>
