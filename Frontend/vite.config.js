@@ -8,9 +8,4 @@ export default defineConfig({
   optimizeDeps: {
     include: ['plotly.js-dist-min'],
   },
-  build: {
-    rollupOptions: {
-      external: ['plotly.js-dist-min'],
-    },
-  },
 })
