@@ -23,6 +23,13 @@ spec:
             - "--web.enable-lifecycle"
           ports:
             - containerPort: 9090
+          resources:
+            requests:
+              cpu: "250m"      # 0.5 vCPU baseline
+              memory: "1Gi"    # 1 GB RAM for active metrics
+            limits:
+              cpu: "500m"     # 1 vCPU for query bursts
+              memory: "2Gi"    # 2 GB RAM for caching and larger TSDB sets
           volumeMounts:
             - name: prometheus-config-vol
               mountPath: /etc/prometheus/

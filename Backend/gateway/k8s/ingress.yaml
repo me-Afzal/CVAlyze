@@ -4,22 +4,35 @@ metadata:
   name: cv-gateway-ingress
   namespace: cvalyze
   annotations:
-    # Increase max upload size to 50MB (adjust as needed)
-    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    # ----------- HTTPS/SSL Configuration -----------
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"  # Changed to true - Force HTTPS
     
-    # Increase timeouts for large file processing
+    # ----------- Body size and timeouts -----------
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
-    
-    # Enable CORS (if needed)
+
+    # ----------- CORS Settings -----------
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "http://localhost:5173, http://localhost:5500"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://cv-alyze.vercel.app"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
     nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+
+    # ----------- Recommended for GCP NGINX setup -----------
+    kubernetes.io/ingress.class: "nginx"
 spec:
   ingressClassName: nginx
+  
+  # TLS Configuration
+  tls:
+  - hosts:
+    - cvalyze.shop
+    secretName: cvalyze-tls  # cert-manager will create this secret automatically
+  
+  # HTTP Routes
   rules:
     - host: cvalyze.shop
       http:

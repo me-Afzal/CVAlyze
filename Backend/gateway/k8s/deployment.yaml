@@ -21,13 +21,20 @@ spec:
     spec:
       containers:
         - name: cv-gateway
-          image: afzal23/cv_gateway:v12
+          image: afzal23/cv_gateway:v13
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
           envFrom:
             - configMapRef:
                 name: gateway-env
+          resources:
+            requests:
+              cpu: "50m"       # 0.25 vCPU
+              memory: "64Mi"   # 512 MB RAM
+            limits:
+              cpu: "200m"       # 0.5 vCPU
+              memory: "256Mi"     # 1 GB RAM
           readinessProbe:
             httpGet:
               path: /api/v1/health

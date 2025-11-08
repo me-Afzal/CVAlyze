@@ -99,7 +99,7 @@ Instrumentator().instrument(app).expose(app)
 # Cors middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173","http://localhost:5500"],
+    allow_origins=["https://cv-alyze.vercel.app/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

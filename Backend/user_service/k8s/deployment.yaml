@@ -14,18 +14,24 @@ spec:
     metadata:
       labels:
         app: cv-user
-      annotations:         
+      annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
         prometheus.io/port: "8001"
     spec:
       containers:
         - name: cv-user
-          image: afzal23/cv_user_service:v5
+          image: afzal23/cv_user_service:v6
           imagePullPolicy: Always
           ports:
             - containerPort: 8001
           envFrom:
             - configMapRef:
                 name: user-env
-          
+          resources:
+            requests:
+              cpu: "100m"      # Reduced from 1000m
+              memory: "256Mi"  # Reduced from 2Gi
+            limits:
+              cpu: "400m"      # Reduced from 1500m
+              memory: "768Mi"    # Reduced from 3Gi

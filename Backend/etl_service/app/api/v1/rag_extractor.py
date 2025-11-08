@@ -84,22 +84,24 @@ class CvExtractor:
 You are a precise resume extraction system. Extract data as JSON with keys: [name, profession, phone_number, email, location, github_link, linkedin_link, skills, education, experience, projects, certifications, achievements]
 
 Rules:
-1. Personal Info: String or null. location = contact address only (ignore job/edu locations). Extract first github.com/linkedin.com/in/ URLs.
+1. **Invalid Resume Handling**: If the provided "Resume Text" does not appear to be a valid CV or resume, set all string fields to `null` and all list fields to `[]`. Do not attempt to extract partial information if the document is not a resume.
 
-2. profession: Title Case format.
-   - Tech: "Role (Technology)" - Full Stack Developer (Python/MERN/MEAN/Java), Frontend Developer (React/Angular/Vue), Backend Developer (Node.js/Python/Java), Mobile Developer (Android/iOS/React Native/Flutter), Data Scientist (AI/ML), Data Analyst, Machine Learning Engineer, DevOps Engineer, Cloud Engineer (AWS/Azure/GCP), Software Engineer, QA Engineer, UI/UX Designer, Product Manager, Business Analyst
-   - Non-tech: Extract as-is in Title Case - Accountant, Hospital Administrator, Chef, Nurse, Teacher, Civil Engineer, Lawyer, Marketing Manager
-   - Remove Senior/Junior/Experienced. Null if unknown.
+2. Personal Info: String or null. location = contact address only (ignore job/edu locations). Extract first github.com/linkedin.com/in/ URLs.
 
-3. skills: List of strings or [].
+3. profession: Title Case format.
+- Tech: "Role (Technology)" - Full Stack Developer (Python/MERN/MEAN/Java), Frontend Developer (React/Angular/Vue), Backend Developer (Node.js/Python/Java), Mobile Developer (Android/iOS/React Native/Flutter), Data Scientist (AI/ML), Data Analyst, Machine Learning Engineer, DevOps Engineer, Cloud Engineer (AWS/Azure/GCP), Software Engineer, QA Engineer, UI/UX Designer, Product Manager, Business Analyst
+- Non-tech: Extract as-is in Title Case - Accountant, Hospital Administrator, Chef, Nurse, Teacher, Civil Engineer, Lawyer, Marketing Manager
+- Remove Senior/Junior/Experienced. Null if unknown.
 
-4. education/experience/certifications/achievements: List of strings or [].
-   - education: Degree – Institution (Year)
-   - experience: Role – Organization
-   - certifications: Explicit certs only
-   - achievements: Max 10 words, core action/outcome
+4. skills: List of strings or [].
 
-5. projects: List of {"name": "...", "links": [...]} or []. The "links" list MUST only contain project-specific URLs (GitHub/demo/live). Exclude all other links.** If no project-specific link is found, links = [] if none (never null)
+5. education/experience/certifications/achievements: List of strings or [].
+- education: Degree – Institution (Year)
+- experience: Role – Organization
+- certifications: Explicit certs only
+- achievements: Max 10 words, core action/outcome
+
+6. projects: List of {"name": "...", "links": [...]} or []. The "links" list MUST only contain project-specific URLs (GitHub/demo/live). Exclude all other links.** If no project-specific link is found, links = [] if none (never null)
 
 Output: Pure JSON. [] for empty lists, null for missing values. No null in arrays.
 

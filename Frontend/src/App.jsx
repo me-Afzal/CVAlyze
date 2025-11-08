@@ -719,7 +719,35 @@ const UploadPage = ({ navigate }) => {
 
       setUploadProgress({ currentFileIndex: totalFiles, stage: 'cleaning' });
 
-      // NO DELAYS - INSTANT NAVIGATION
+      // ✅ NEW: Check if jsonCv is empty
+      if (!data.jsonCv || data.jsonCv.length === 0) {
+        setUploading(false);
+
+        // Show error details
+        let errorMessage = 'No valid CV data was extracted from the uploaded files.';
+
+        if (data.errors && data.errors.length > 0) {
+          errorMessage += '\n\nErrors:\n' + data.errors.map(err =>
+            `- ${err.file}: ${err.error}`
+          ).join('\n');
+        }
+
+        alert(errorMessage);
+
+        // Clear files and allow user to try again
+        setFiles([]);
+        return;
+      }
+
+      // ✅ NEW: Show warning if some files had errors
+      if (data.errors && data.errors.length > 0) {
+        const successCount = data.jsonCv.length;
+        const errorCount = data.errors.length;
+
+        alert(`Processing complete!\n\n✅ Successfully processed: ${successCount} CVs\n❌ Failed: ${errorCount} files\n\nCheck the dashboard for results.`);
+      }
+
+      // Store data and navigate
       localStorage.setItem('cv_data', JSON.stringify(data.jsonCv));
       navigate('/dashboard');
 

@@ -221,6 +221,9 @@ async def process_cvs(files):
     all_cv_data = [r for r in results if "error" not in r]
     errors = [r for r in results if "error" in r]
 
+    # Initialize json_response as empty list
+    json_response = []
+
     # Feature Engineering: Data Enrichment
     expected_cols = ['name', 'profession', 'phone_number', 'email', 'location',
                      'github_link', 'linkedin_link', 'skills', 'education',
