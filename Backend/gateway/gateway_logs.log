@@ -1,0 +1,36 @@
+2025-11-06 19:22:53 [INFO] gateway: Starting Gateway Service
+2025-11-06 19:22:58 [INFO] gateway: Redis connected for rate limiting
+2025-11-06 19:23:49 [WARNING] gateway: Unauthorized access attempt to /logs
+2025-11-06 19:24:08 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:24:08 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:24:22 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:24:22 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:24:25 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:24:25 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:25:18 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:25:18 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:25:25 [WARNING] gateway: Unauthorized access attempt to /logs/r
+2025-11-06 19:25:30 [WARNING] gateway: Unauthorized access attempt to /logs
+2025-11-06 19:25:37 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:25:37 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:27:24 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:27:24 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:27:32 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:27:32 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:27:41 [INFO] gateway: Authenticated user: admin -> 
+2025-11-06 19:27:41 [INFO] gateway: Gateway root accessed
+2025-11-06 19:27:46 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:27:46 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:31:06 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:31:06 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:31:28 [INFO] gateway: Redis connection closed
+2025-11-06 19:31:30 [INFO] gateway: Starting Gateway Service
+2025-11-06 19:31:32 [INFO] gateway: Redis connected for rate limiting
+2025-11-06 19:31:35 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:31:35 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:33:32 [INFO] gateway: Redis connection closed
+2025-11-06 19:33:33 [INFO] gateway: Starting Gateway Service
+2025-11-06 19:33:35 [INFO] gateway: Redis connected for rate limiting
+2025-11-06 19:33:39 [INFO] gateway: Authenticated user: admin -> /logs
+2025-11-06 19:33:39 [INFO] gateway: Log file accessed (limit=100, offset=0).
+2025-11-06 19:34:23 [INFO] gateway: Redis connection closed

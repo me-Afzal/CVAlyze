@@ -19,7 +19,7 @@ const Router = ({ children }) => {
 };
 
 // API Configuration
-const API_BASE = 'http://cvalyze.shop/api/v1';
+const API_BASE = 'https://cvalyze.shop/api/v1';
 const GEMINI_API_KEY = import.meta.env.VITE_API_KEY;
 
 // Auth Context
@@ -78,12 +78,12 @@ const renderDataItem = (item) => {
 // Enhanced Loading Overlay Component with File Progress
 const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction' }) => {
   const totalFiles = files.length;
-  const baseProgress = totalFiles > 0 ? (currentFileIndex / totalFiles) * 70 : 0; // 70% for file extraction
+  const baseProgress = totalFiles > 0 ? (currentFileIndex / totalFiles) * 70 : 0;
 
   const getStageProgress = () => {
     if (stage === 'extraction') return baseProgress;
-    if (stage === 'feature-engineering') return 70 + 15; // 85%
-    if (stage === 'cleaning') return 85 + 15; // 100%
+    if (stage === 'feature-engineering') return 70 + 15;
+    if (stage === 'cleaning') return 85 + 15;
     return baseProgress;
   };
 
@@ -97,22 +97,19 @@ const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction'
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 overflow-y-auto">
       {/* Animated background particles */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute w-96 h-96 bg-blue-400/20 rounded-full blur-3xl animate-pulse top-10 left-10"></div>
         <div className="absolute w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse bottom-10 right-10" style={{ animationDelay: '1s' }}></div>
         <div className="absolute w-96 h-96 bg-blue-300/20 rounded-full blur-3xl animate-pulse top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" style={{ animationDelay: '2s' }}></div>
       </div>
 
       {/* Loading content */}
-      <div className="relative z-10 flex flex-col items-center max-w-2xl w-full px-4">
+      <div className="relative z-10 flex flex-col items-center max-w-2xl w-full px-4 py-8 my-auto">
         {/* Spinner */}
-        <div className="relative w-32 h-32 mb-8">
-          {/* Outer ring */}
+        <div className="relative w-32 h-32 mb-8 flex-shrink-0">
           <div className="absolute inset-0 border-8 border-blue-200/30 rounded-full"></div>
-
-          {/* Spinning rings */}
           <div className="absolute inset-0 border-8 border-transparent border-t-white border-r-white rounded-full animate-spin"></div>
           <div className="absolute inset-3 border-8 border-transparent border-b-blue-300 border-l-blue-300 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
           <div className="absolute inset-6 border-8 border-transparent border-t-blue-400 rounded-full animate-spin" style={{ animationDuration: '2s' }}></div>
@@ -126,7 +123,7 @@ const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction'
         </div>
 
         {/* Text */}
-        <div className="text-center space-y-4 mb-6">
+        <div className="text-center space-y-4 mb-6 flex-shrink-0">
           <h2 className="text-3xl font-bold text-white animate-pulse">
             Processing CVs
           </h2>
@@ -136,15 +133,15 @@ const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction'
         </div>
 
         {/* Stage Indicator */}
-        <div className="w-full max-w-md mb-6">
+        <div className="w-full max-w-md mb-6 flex-shrink-0">
           <div className="flex justify-between items-center mb-2">
             <div className={`flex items-center space-x-2 ${stage === 'extraction' ? 'text-white' : stage === 'feature-engineering' || stage === 'cleaning' ? 'text-green-300' : 'text-blue-300'}`}>
               <div className={`w-3 h-3 rounded-full ${stage === 'extraction' ? 'bg-white animate-pulse' : stage === 'feature-engineering' || stage === 'cleaning' ? 'bg-green-300' : 'bg-blue-300'}`}></div>
-              <span className="text-sm font-semibold">File Extraction</span>
+              <span className="text-sm font-semibold">Extraction</span>
             </div>
             <div className={`flex items-center space-x-2 ${stage === 'feature-engineering' ? 'text-white' : stage === 'cleaning' ? 'text-green-300' : 'text-blue-300'}`}>
               <div className={`w-3 h-3 rounded-full ${stage === 'feature-engineering' ? 'bg-white animate-pulse' : stage === 'cleaning' ? 'bg-green-300' : 'bg-blue-300'}`}></div>
-              <span className="text-sm font-semibold">Feature Engineering</span>
+              <span className="text-sm font-semibold">Features</span>
             </div>
             <div className={`flex items-center space-x-2 ${stage === 'cleaning' ? 'text-white' : 'text-blue-300'}`}>
               <div className={`w-3 h-3 rounded-full ${stage === 'cleaning' ? 'bg-white animate-pulse' : 'bg-blue-300'}`}></div>
@@ -154,10 +151,10 @@ const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction'
         </div>
 
         {/* Progress bar */}
-        <div className="w-full max-w-md mb-6">
+        <div className="w-full max-w-md mb-6 flex-shrink-0">
           <div className="h-3 bg-blue-700/50 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-blue-400 via-white to-blue-400 transition-all duration-500 ease-out"
+              className="h-full bg-gradient-to-r from-blue-400 via-white to-blue-400 transition-all duration-300 ease-out"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -170,12 +167,12 @@ const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction'
 
         {/* File Progress List */}
         {stage === 'extraction' && files.length > 0 && (
-          <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-xl p-4 max-h-64 overflow-y-auto">
+          <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-xl p-4 mb-6 flex-shrink-0">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-white font-semibold">Processing Files</h3>
               <span className="text-blue-200 text-sm">{currentFileIndex} / {totalFiles}</span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
               {files.map((file, index) => (
                 <div
                   key={index}
@@ -209,9 +206,9 @@ const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction'
 
         {/* Feature Engineering / Cleaning Message */}
         {(stage === 'feature-engineering' || stage === 'cleaning') && (
-          <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-xl p-4">
+          <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-xl p-4 mb-6 flex-shrink-0">
             <div className="flex items-center space-x-3">
-              <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
               <div>
                 <p className="text-white font-semibold">
                   {stage === 'feature-engineering' ? 'Engineering Features' : 'Finalizing Data'}
@@ -227,7 +224,7 @@ const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction'
         )}
 
         {/* Bottom info */}
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center flex-shrink-0">
           <div className="flex items-center justify-center space-x-2 mb-2">
             <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
             <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -244,15 +241,70 @@ const LoadingOverlay = ({ files = [], currentFileIndex = 0, stage = 'extraction'
 
 // Welcome Page Component
 const WelcomePage = ({ navigate }) => {
-  const { isAuthenticated } = useAuth(); // Add this to check authentication
+  const { isAuthenticated, token, logout } = useAuth();
+  const [validatingToken, setValidatingToken] = useState(false);
+  const [tokenValid, setTokenValid] = useState(false);
+
+  useEffect(() => {
+    const validateToken = async () => {
+      if (!token) {
+        setTokenValid(false);
+        return;
+      }
+
+      setValidatingToken(true);
+      try {
+        // Validate token by making a request to the backend
+        const response = await fetch(`${API_BASE}/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          setTokenValid(true);
+        } else {
+          // Token is invalid, clear it
+          logout();
+          setTokenValid(false);
+        }
+      } catch (error) {
+        console.error('Token validation error:', error);
+        logout();
+        setTokenValid(false);
+      } finally {
+        setValidatingToken(false);
+      }
+    };
+
+    if (isAuthenticated && token) {
+      validateToken();
+    } else {
+      setTokenValid(false);
+    }
+  }, [token, isAuthenticated, logout]);
 
   const handleGetStarted = () => {
-    if (isAuthenticated) {
+    if (isAuthenticated && tokenValid) {
       navigate('/upload');
     } else {
       navigate('/login');
     }
   };
+
+  // Show loading while validating token
+  if (validatingToken) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-blue-100 flex items-center justify-center">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-200/40 via-transparent to-transparent"></div>
+        <div className="relative text-center">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-900 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-blue-800 text-lg font-medium">Validating session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-blue-100 overflow-hidden">
@@ -313,13 +365,13 @@ const WelcomePage = ({ navigate }) => {
               </div>
             </div>
 
-            {/* Get Started Button - UPDATED */}
+            {/* Get Started Button - UPDATED with token validation */}
             <div className="text-center">
               <button
                 onClick={handleGetStarted}
                 className="group bg-gradient-to-r from-blue-900 to-blue-700 text-white px-10 py-4 rounded-2xl font-bold text-lg hover:from-blue-800 hover:to-blue-600 transition-all transform hover:scale-105 shadow-2xl shadow-blue-300/50 inline-flex items-center space-x-3"
               >
-                <span>{isAuthenticated ? 'Go to Dashboard' : 'Get Started'}</span>
+                <span>{isAuthenticated && tokenValid ? 'Go to Dashboard' : 'Get Started'}</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
               </button>
             </div>
@@ -600,12 +652,11 @@ const UploadPage = ({ navigate }) => {
     setUploadProgress({ currentFileIndex: 0, stage: 'extraction' });
 
     const totalFiles = files.length;
-    const estimatedTimePerFile = 4000; // 4 seconds per file (for simulation only)
+    const estimatedTimePerFile = 3000;
 
     let progressInterval = null;
     let isBackendComplete = false;
 
-    // Start progress simulation - but this can be interrupted
     const startProgressSimulation = () => {
       let currentIndex = 0;
 
@@ -633,14 +684,13 @@ const UploadPage = ({ navigate }) => {
     files.forEach(file => formData.append('files', file));
 
     try {
-      // Make the actual API call
       const response = await fetch(`${API_BASE}/upload_cvs`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
 
-      // Backend responded - stop simulation
+      // Backend responded - IMMEDIATELY stop simulation
       isBackendComplete = true;
       if (progressInterval) {
         clearInterval(progressInterval);
@@ -652,32 +702,24 @@ const UploadPage = ({ navigate }) => {
       }
 
       if (response.status === 413) {
-        alert('Upload failed: File size too large. Please try uploading fewer files at once or contact support.');
+        alert('Upload failed: File size too large.');
         setUploading(false);
         return;
       }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
+        throw new Error(errorData.detail || `Upload failed`);
       }
 
-      // Move to feature engineering stage (even if files aren't all "shown" as complete)
+      // IMMEDIATE stage updates
       setUploadProgress({ currentFileIndex: totalFiles, stage: 'feature-engineering' });
 
-      // Small delay to show the stage change (0.5 second)
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Move to cleaning stage
-      setUploadProgress({ currentFileIndex: totalFiles, stage: 'cleaning' });
-
-      // Parse response
       const data = await response.json();
 
-      // Small delay to show the cleaning stage (0.5 second)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      setUploadProgress({ currentFileIndex: totalFiles, stage: 'cleaning' });
 
-      // Save and navigate
+      // NO DELAYS - INSTANT NAVIGATION
       localStorage.setItem('cv_data', JSON.stringify(data.jsonCv));
       navigate('/dashboard');
 
@@ -1134,6 +1176,8 @@ const DashboardPage = ({ navigate }) => {
 
   const renderSkillsChart = () => {
     const skillCounts = {};
+
+    // Count all skills from all CVs
     cvData.forEach(cv => {
       (cv.skills || []).forEach(skill => {
         const skillStr = typeof skill === 'string' ? skill : (skill?.name || String(skill));
@@ -1141,10 +1185,18 @@ const DashboardPage = ({ navigate }) => {
       });
     });
 
-    const sortedSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
-    const filteredData = sortedSkills.map(s => ({ label: s[0], value: s[1] })).filter(item => item.value > 0);
+    // Sort by count descending - SHOW ALL SKILLS (no slicing)
+    const sortedSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]);
 
-    const colors = ['#1e3a8a', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#1d4ed8', '#2563eb', '#3b82f6'];
+    // Map to data format - include ALL skills even with count of 1
+    const filteredData = sortedSkills.map(s => ({ label: s[0], value: s[1] }));
+
+    // Color palette for variety
+    const colors = [
+      '#1e3a8a', '#1e40af', '#3b82f6', '#60a5fa', '#93c5fd',
+      '#1d4ed8', '#2563eb', '#3b82f6', '#1e3a8a', '#2563eb',
+      '#1e40af', '#60a5fa', '#1d4ed8', '#93c5fd'
+    ];
 
     const data = [{
       type: 'treemap',
@@ -1159,19 +1211,30 @@ const DashboardPage = ({ navigate }) => {
       },
       textfont: {
         color: '#fff',
-        size: 14,
+        size: 12,
         family: 'Arial'
       },
-      hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>'
+      hovertemplate: '<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percentParent}<extra></extra>'
     }];
+
+    // Dynamic height based on number of skills
+    const chartHeight = Math.max(400, Math.min(800, filteredData.length * 8));
 
     const layout = {
       paper_bgcolor: 'rgba(255,255,255,0)',
       plot_bgcolor: 'rgba(255,255,255,0)',
-      margin: { t: 20, b: 20, l: 20, r: 20 }
+      margin: { t: 20, b: 20, l: 20, r: 20 },
+      height: chartHeight
     };
 
-    Plotly.newPlot('skills-chart', data, layout, { responsive: true });
+    const config = {
+      responsive: true,
+      displayModeBar: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ['lasso2d', 'select2d']
+    };
+
+    Plotly.newPlot('skills-chart', data, layout, config);
   };
 
   const renderCountryChart = () => {
@@ -1404,10 +1467,26 @@ const DashboardPage = ({ navigate }) => {
 
         {/* Skills Tree Map - Full Width */}
         <div className="bg-white/60 backdrop-blur-xl border border-blue-200 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-2xl font-bold text-blue-800 mb-4 flex items-center">
-            <BarChart3 className="w-6 h-6 mr-2" /> Skills Tree Map
-          </h2>
-          <div id="skills-chart" className="h-96"></div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-blue-800 flex items-center">
+              <BarChart3 className="w-6 h-6 mr-2" /> Skills Tree Map
+            </h2>
+            <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2">
+              <p className="text-blue-900 font-semibold text-sm">
+                Total Unique Skills: {Object.keys(cvData.reduce((acc, cv) => {
+                  (cv.skills || []).forEach(skill => {
+                    const skillStr = typeof skill === 'string' ? skill : (skill?.name || String(skill));
+                    acc[skillStr] = true;
+                  });
+                  return acc;
+                }, {})).length}
+              </p>
+            </div>
+          </div>
+          <div id="skills-chart" className="min-h-96"></div>
+          <p className="text-blue-700 text-sm mt-3 text-center italic">
+            Showing all skills across all candidates • Size indicates skill frequency
+          </p>
         </div>
 
         {/* Skill Coverage Heatmap - Full Width */}

@@ -49,7 +49,6 @@ def health_check():
     """
     Health check endpoint for the API Gateway v1.
     """
-    logger.info("Gateway v1 health check accessed")
     return {"status": "healthy"}
 
 

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-loki
+  namespace: cvalyze
+data:
+  loki-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        orgId: 1
+        url: http://loki.cvalyze.svc.cluster.local:3100
+        basicAuth: false
+        isDefault: false
+        version: 1
+        editable: true
+        jsonData:
+          maxLines: 1000
