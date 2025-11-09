@@ -572,7 +572,6 @@ YYYY-MM-DD HH:MM:SS [LEVEL] logger_name: message
 
 - **Gateway Service**: Routes requests to ETL Service → [Documentation](../gateway/README.md)
 - **User Service**: Manages user authentication → [Documentation](../user_service/README.md)
-- **Prometheus**: Monitors service metrics → [Configuration](../prometheus/prometheus.yml)
 
 ---
 

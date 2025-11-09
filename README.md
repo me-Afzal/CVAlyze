@@ -19,6 +19,8 @@
 
 **CVAlyze** is an end-to-end platform that automates the analysis of resumes, extracting structured insights from unstructured CVs, enriching data with AI-driven features, and presenting it through an interactive dashboard for HR teams and recruiters.
 
+## Live link: [CVAlyze](https://cv-alyze.vercel.app/)
+
 ### 🎯 Objective
 
 Streamline and accelerate the recruitment process by:

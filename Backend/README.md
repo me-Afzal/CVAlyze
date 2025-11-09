@@ -67,11 +67,7 @@ Backend/
 - Alert management
 
 **Configuration**: 
-- Main config file: `prometheus/prometheus.yml`
-- Configured scrape targets for all microservices
-- Custom metrics and alerting rules
-
-📖 **[View Prometheus Configuration](./prometheus/prometheus.yml)**
+- All configurations are done at GCP Kubernetes side.
 
 ---
 
@@ -80,7 +76,7 @@ Backend/
 - **Languages**: Python
 - **Frameworks**: FastAPI
 - **Databases**: PostgreSQL (Prisma)
-- **Monitoring**: Prometheus + Grafana
+- **Monitoring**: Prometheus
 - **Containerization**: Docker & Docker Compose
 
 ## 🚦 Getting Started

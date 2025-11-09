@@ -886,7 +886,6 @@ All errors follow FastAPI's standard format:
 
 - **Gateway Service**: Routes client requests to User Service → [Documentation](../gateway/README.md)
 - **ETL Service**: Processes CVs for authenticated users → [Documentation](../etl_service/README.md)
-- **Prometheus**: Monitors service metrics → [Configuration](../prometheus/prometheus.yml)
 
 ---
 

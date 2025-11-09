@@ -928,7 +928,6 @@ Gateway forwards status codes and error messages from upstream services:
 
 - **User Service**: Handles authentication and user management → [Documentation](../user_service/README.md)
 - **ETL Service**: Processes CVs and extracts data → [Documentation](../etl_service/README.md)
-- **Prometheus**: Monitors all services → [Configuration](../prometheus/prometheus.yml)
 
 ---
 
