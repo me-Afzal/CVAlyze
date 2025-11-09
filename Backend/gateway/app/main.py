@@ -27,6 +27,7 @@ load_dotenv()
 
 # Load environment variables for JWT authentication
 SECRET_KEY = os.getenv("SECRET_KEY")
+REDIS_URL = os.getenv("REDIS_URL")
 ALGORITHM = "HS256"
 
 # Service URLs
@@ -72,20 +73,44 @@ logger.info("Starting Gateway Service")
 # ------------------ Lifespan for Redis for Rate limit ------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup logic"""
-    redis_conn = await redis.from_url(
-        "redis://default:TfW7IYkvSOsHlVSnq4If7FWThhOdg9kJ@redis-10098.c83.us-east-1-2.ec2.redns.redis-cloud.com:10098",
-        encoding="utf-8",
-        decode_responses=True
-    )
-    await FastAPILimiter.init(redis_conn)
-    logger.info("Redis connected for rate limiting")
+    """Startup logic with proper error handling"""
+    redis_conn = None
+    
+    try:
+        # Connect to Redis with connection pooling
+        redis_conn = await redis.from_url(
+            REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+            max_connections=10,  # Connection pooling
+            socket_connect_timeout=5,  # Connection timeout
+            socket_timeout=5,  # Operation timeout
+            retry_on_timeout=True,
+            retry_on_error=[ConnectionError, TimeoutError]
+        )
+        
+        # Test the connection
+        await redis_conn.ping()
+        
+        await FastAPILimiter.init(redis_conn)
+        logger.info("Redis connected successfully for rate limiting")
+        
+    except redis.ConnectionError as e:
+        logger.error(f"Failed to connect to Redis: {e}")
+        logger.warning("Rate limiting will be disabled")
+        
+    except Exception as e:
+        logger.error(f"Unexpected error connecting to Redis: {e}")
 
     yield  # App runs here
 
     # Shutdown logic
-    await redis_conn.close()
-    logger.info("Redis connection closed")
+    if redis_conn:
+        try:
+            await redis_conn.close()
+            logger.info("Redis connection closed")
+        except Exception as e:
+            logger.error(f"Error closing Redis connection: {e}")
 
 # ------------------ FastAPI App ------------------
 app = FastAPI(

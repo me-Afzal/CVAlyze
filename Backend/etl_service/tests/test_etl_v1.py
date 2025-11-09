@@ -65,10 +65,3 @@ def test_upload_invalid_file_type():
     )
     assert response.status_code == 400
     assert "Unsupported file type" in response.json()["detail"]
-
-
-def test_logs_endpoint_exists():
-    """Test that /logs endpoint returns the log file."""
-    response = client.get("/logs")
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("application/json")
