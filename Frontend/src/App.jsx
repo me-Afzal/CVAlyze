@@ -583,15 +583,16 @@ const AuthPage = ({ navigate }) => {
   );
 };
 
-// UploadPage component's handleUpload function
+// UploadPage component with improved invalid CV handling
 const UploadPage = ({ navigate }) => {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState('');
+  const [invalidCVError, setInvalidCVError] = useState(null); // NEW: Track invalid CV errors
   const [uploadProgress, setUploadProgress] = useState({
     currentFileIndex: 0,
-    stage: 'extraction' // extraction, feature-engineering, cleaning
+    stage: 'extraction'
   });
   const { token, logout } = useAuth();
   const fileInputRef = useRef();
@@ -612,6 +613,7 @@ const UploadPage = ({ navigate }) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+    setInvalidCVError(null); // Clear previous invalid CV errors
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const selectedFiles = Array.from(e.dataTransfer.files);
@@ -629,6 +631,7 @@ const UploadPage = ({ navigate }) => {
   const handleFileChange = (e) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
+      setInvalidCVError(null); // Clear previous invalid CV errors
 
       if (selectedFiles.length > MAX_FILES) {
         setError(`You can only upload a maximum of ${MAX_FILES} files at a time. You selected ${selectedFiles.length} files.`);
@@ -649,6 +652,7 @@ const UploadPage = ({ navigate }) => {
     }
 
     setUploading(true);
+    setInvalidCVError(null); // Clear any previous invalid CV errors
     setUploadProgress({ currentFileIndex: 0, stage: 'extraction' });
 
     const totalFiles = files.length;
@@ -702,8 +706,8 @@ const UploadPage = ({ navigate }) => {
       }
 
       if (response.status === 413) {
-        alert('Upload failed: File size too large.');
         setUploading(false);
+        setError('Upload failed: File size too large. Please use smaller files.');
         return;
       }
 
@@ -719,37 +723,50 @@ const UploadPage = ({ navigate }) => {
 
       setUploadProgress({ currentFileIndex: totalFiles, stage: 'cleaning' });
 
-      // ✅ NEW: Check if jsonCv is empty
+      // Check if jsonCv is empty - Show webpage error instead of alert
       if (!data.jsonCv || data.jsonCv.length === 0) {
         setUploading(false);
 
-        // Show error details
-        let errorMessage = 'No valid CV data was extracted from the uploaded files.';
+        // Build error details
+        const errorDetails = {
+          message: 'The uploaded files do not appear to be valid CVs/Resumes.',
+          suggestion: 'Please ensure you are uploading proper CV/Resume documents that contain:',
+          requirements: [
+            'Candidate name and contact information',
+            'Professional experience or education details',
+            'Standard CV/Resume format (PDF, DOCX, or TXT)'
+          ],
+          errors: data.errors || []
+        };
 
-        if (data.errors && data.errors.length > 0) {
-          errorMessage += '\n\nErrors:\n' + data.errors.map(err =>
-            `- ${err.file}: ${err.error}`
-          ).join('\n');
-        }
-
-        alert(errorMessage);
-
-        // Clear files and allow user to try again
-        setFiles([]);
+        setInvalidCVError(errorDetails);
+        setFiles([]); // Clear files to allow retry
         return;
       }
 
-      // ✅ NEW: Show warning if some files had errors
+      // Show partial success message if some files had errors
       if (data.errors && data.errors.length > 0) {
         const successCount = data.jsonCv.length;
         const errorCount = data.errors.length;
 
-        alert(`Processing complete!\n\n✅ Successfully processed: ${successCount} CVs\n❌ Failed: ${errorCount} files\n\nCheck the dashboard for results.`);
-      }
+        // Store partial error info but still proceed
+        setInvalidCVError({
+          isPartial: true,
+          successCount,
+          errorCount,
+          errors: data.errors
+        });
 
-      // Store data and navigate
-      localStorage.setItem('cv_data', JSON.stringify(data.jsonCv));
-      navigate('/dashboard');
+        // Still proceed to dashboard with successful extractions
+        localStorage.setItem('cv_data', JSON.stringify(data.jsonCv));
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 3000); // Give user time to see the partial success message
+      } else {
+        // Complete success - navigate immediately
+        localStorage.setItem('cv_data', JSON.stringify(data.jsonCv));
+        navigate('/dashboard');
+      }
 
     } catch (err) {
       isBackendComplete = true;
@@ -757,10 +774,17 @@ const UploadPage = ({ navigate }) => {
         clearInterval(progressInterval);
       }
       console.error('Upload error:', err);
-      alert('Upload failed: ' + err.message);
+      setError('Upload failed: ' + err.message);
     } finally {
       setUploading(false);
     }
+  };
+
+  // Clear invalid CV error when user selects new files
+  const handleClearInvalidError = () => {
+    setInvalidCVError(null);
+    setFiles([]);
+    setError('');
   };
 
   return (
@@ -809,61 +833,139 @@ const UploadPage = ({ navigate }) => {
             <p className="text-blue-700 text-sm mt-2">Maximum {MAX_FILES} files per upload</p>
           </div>
 
-          {error && (
+          {/* Regular error message */}
+          {error && !invalidCVError && (
             <div className="mb-6 p-4 bg-red-100 border border-red-300 rounded-xl text-red-700 text-center">
               <p className="font-semibold">{error}</p>
             </div>
           )}
 
-          <div
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`relative border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all ${dragActive
-              ? 'border-blue-900 bg-blue-100'
-              : 'border-blue-300 bg-blue-50/50 hover:border-blue-700 hover:bg-blue-100/50'
-              } backdrop-blur-xl`}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.docx,.txt"
-              onChange={handleFileChange}
-              className="hidden"
-            />
+          {/* Invalid CV Error Display */}
+          {invalidCVError && !invalidCVError.isPartial && (
+            <div className="mb-6 bg-red-50 border-2 border-red-300 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-start space-x-4">
+                <div className="bg-red-100 rounded-full p-3 flex-shrink-0">
+                  <X className="w-8 h-8 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-red-700 mb-2">Invalid File Format Detected</h3>
+                  <p className="text-red-600 mb-4">{invalidCVError.message}</p>
 
-            <Upload className="w-16 h-16 mx-auto mb-4 text-blue-700" />
-            <h3 className="text-xl font-semibold text-blue-900 mb-2">Drop CV files here</h3>
-            <p className="text-blue-800 mb-4">or click to browse</p>
-            <p className="text-sm text-blue-700">Supports PDF, DOCX, and TXT formats</p>
-            <p className="text-sm text-blue-600 mt-2 font-semibold">Max {MAX_FILES} files at a time</p>
-          </div>
-
-          {files.length > 0 && (
-            <div className="mt-8 bg-white/60 backdrop-blur-xl border border-blue-200 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-blue-800 mb-4">
-                Selected Files ({files.length}/{MAX_FILES})
-              </h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {files.map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <span className="text-blue-900 truncate">{file.name}</span>
-                    <span className="text-blue-700 text-sm">{(file.size / 1024).toFixed(1)} KB</span>
+                  <div className="bg-white border border-red-200 rounded-lg p-4 mb-4">
+                    <p className="text-gray-700 font-semibold mb-2">{invalidCVError.suggestion}</p>
+                    <ul className="space-y-1">
+                      {invalidCVError.requirements.map((req, idx) => (
+                        <li key={idx} className="flex items-start text-gray-600">
+                          <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                          <span>{req}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                ))}
+
+                  {invalidCVError.errors && invalidCVError.errors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                      <p className="text-red-700 font-semibold text-sm mb-2">Error Details:</p>
+                      <ul className="space-y-1">
+                        {invalidCVError.errors.slice(0, 3).map((err, idx) => (
+                          <li key={idx} className="text-red-600 text-sm">
+                            • {err.file}: {err.error}
+                          </li>
+                        ))}
+                        {invalidCVError.errors.length > 3 && (
+                          <li className="text-red-600 text-sm italic">
+                            ... and {invalidCVError.errors.length - 3} more errors
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleClearInvalidError}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-all flex items-center space-x-2"
+                  >
+                    <Upload className="w-5 h-5" />
+                    <span>Try Again with Valid CVs</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Partial Success Message */}
+          {invalidCVError && invalidCVError.isPartial && (
+            <div className="mb-6 bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-start space-x-4">
+                <div className="bg-yellow-100 rounded-full p-3 flex-shrink-0">
+                  <TrendingUp className="w-8 h-8 text-yellow-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-yellow-700 mb-2">Partial Success</h3>
+                  <p className="text-yellow-600 mb-3">
+                    Successfully processed: <span className="font-bold">{invalidCVError.successCount}</span> CVs<br />
+                    Failed to process: <span className="font-bold">{invalidCVError.errorCount}</span> files
+                  </p>
+                  <p className="text-gray-600 text-sm">Redirecting to dashboard with successful extractions...</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Upload area - Hide when showing invalid CV error */}
+          {!invalidCVError && (
+            <>
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`relative border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all ${dragActive
+                  ? 'border-blue-900 bg-blue-100'
+                  : 'border-blue-300 bg-blue-50/50 hover:border-blue-700 hover:bg-blue-100/50'
+                  } backdrop-blur-xl`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.txt"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+
+                <Upload className="w-16 h-16 mx-auto mb-4 text-blue-700" />
+                <h3 className="text-xl font-semibold text-blue-900 mb-2">Drop CV files here</h3>
+                <p className="text-blue-800 mb-4">or click to browse</p>
+                <p className="text-sm text-blue-700">Supports PDF, DOCX, and TXT formats</p>
+                <p className="text-sm text-blue-600 mt-2 font-semibold">Max {MAX_FILES} files at a time</p>
               </div>
 
-              <button
-                onClick={handleUpload}
-                disabled={uploading || files.length === 0 || files.length > MAX_FILES}
-                className="w-full mt-6 py-3 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-xl font-semibold hover:from-blue-800 hover:to-blue-600 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-300/50"
-              >
-                {files.length > MAX_FILES ? `Too many files (Max ${MAX_FILES})` : 'Upload and Analyze'}
-              </button>
-            </div>
+              {files.length > 0 && (
+                <div className="mt-8 bg-white/60 backdrop-blur-xl border border-blue-200 rounded-2xl p-6">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-4">
+                    Selected Files ({files.length}/{MAX_FILES})
+                  </h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {files.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <span className="text-blue-900 truncate">{file.name}</span>
+                        <span className="text-blue-700 text-sm">{(file.size / 1024).toFixed(1)} KB</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={handleUpload}
+                    disabled={uploading || files.length === 0 || files.length > MAX_FILES}
+                    className="w-full mt-6 py-3 bg-gradient-to-r from-blue-900 to-blue-700 text-white rounded-xl font-semibold hover:from-blue-800 hover:to-blue-600 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-300/50"
+                  >
+                    {files.length > MAX_FILES ? `Too many files (Max ${MAX_FILES})` : 'Upload and Analyze'}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

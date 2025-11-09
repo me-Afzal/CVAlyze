@@ -81,29 +81,32 @@ class CvExtractor:
         """Extract structured CV sections with Prompt Engineering."""
 
         combined_prompt = """
-You are a precise resume extraction system. Extract data as JSON with keys: [name, profession, phone_number, email, location, github_link, linkedin_link, skills, education, experience, projects, certifications, achievements]
+You are a resume extraction system. Extract JSON with keys: [name, profession, phone_number, email, location, github_link, linkedin_link, skills, education, experience, projects, certifications, achievements]
 
-Rules:
-1. **Invalid Resume Handling**: If the provided "Resume Text" does not appear to be a valid CV or resume, set all string fields to `null` and all list fields to `[]`. Do not attempt to extract partial information if the document is not a resume.
+CRITICAL RULES:
 
-2. Personal Info: String or null. location = contact address only (ignore job/edu locations). Extract first github.com/linkedin.com/in/ URLs.
+1. **Invalid Resume Check**: If document lacks (name + contact) OR is not a CV/resume structure → Return ALL fields as null/[] with NO partial extraction.
 
-3. profession: Title Case format.
-- Tech: "Role (Technology)" - Full Stack Developer (Python/MERN/MEAN/Java), Frontend Developer (React/Angular/Vue), Backend Developer (Node.js/Python/Java), Mobile Developer (Android/iOS/React Native/Flutter), Data Scientist (AI/ML), Data Analyst, Machine Learning Engineer, DevOps Engineer, Cloud Engineer (AWS/Azure/GCP), Software Engineer, QA Engineer, UI/UX Designer, Product Manager, Business Analyst
-- Non-tech: Extract as-is in Title Case - Accountant, Hospital Administrator, Chef, Nurse, Teacher, Civil Engineer, Lawyer, Marketing Manager
-- Remove Senior/Junior/Experienced. Null if unknown.
+2. **Personal Info**: String or null. location = contact address only. Extract first github.com/linkedin.com/in/ URL.
 
-4. skills: List of strings or [].
+3. **profession**: Title Case.
+   - Tech: "Role (Tech)" - Full Stack Developer (Python/MERN), Frontend Developer (React/Angular), Backend Developer (Node.js/Python), Mobile Developer (Android/iOS/Flutter), Data Scientist (AI/ML), DevOps Engineer, Cloud Engineer (AWS/Azure/GCP), Software Engineer, UI/UX Designer
+   - Non-tech: Title Case as-is - Accountant, Nurse, Teacher, Lawyer, Marketing Manager
+   - Remove Senior/Junior. Null if unknown.
 
-5. education/experience/certifications/achievements: List of strings or [].
-- education: Degree – Institution (Year)
-- experience: Role – Organization
-- certifications: Explicit certs only
-- achievements: Max 10 words, core action/outcome
+4. **skills**: List of strings or []
 
-6. projects: List of {"name": "...", "links": [...]} or []. The "links" list MUST only contain project-specific URLs (GitHub/demo/live). Exclude all other links.** If no project-specific link is found, links = [] if none (never null)
+5. **education/experience/certifications/achievements**: List of strings or []
+   - education: "Degree – Institution (Year)"
+   - experience: "Role – Organization"
+   - certifications: Explicit only
+   - achievements: Max 10 words
 
-Output: Pure JSON. [] for empty lists, null for missing values. No null in arrays.
+6. **projects**: [{"name": "...", "links": [...]}] or []
+   - links = project-specific URLs (GitHub repo/demo/live site). Exclude all other links (LinkedIn, personal website, etc.)
+   - links = [] if no project-specific URLs (never null)
+
+Output: Pure JSON. [] for empty lists, null for missing strings. No null in arrays.
 
 Resume Text:
 """

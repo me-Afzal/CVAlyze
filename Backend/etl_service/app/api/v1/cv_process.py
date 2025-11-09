@@ -232,6 +232,17 @@ async def process_cvs(files):
     df = pd.DataFrame(all_cv_data).reindex(columns=expected_cols, fill_value=None)
     df = df.dropna(how='all')
 
+    # Drop invalid candidate records (missing BOTH name AND profession)
+    initial_count = len(df)
+    df = df.dropna(subset=['name', 'profession'], how='all')
+    dropped_count = initial_count - len(df)
+    
+    if dropped_count > 0:
+        logger.warning(
+            "Dropped %d invalid candidate record(s) due to missing both name and profession.",
+            dropped_count
+        )
+
     if not df.empty:
         # Latitude, Longitude, Country and Gender Enrichment
         logger.info("Enriching data with geolocation and gender for %d candidates.",
