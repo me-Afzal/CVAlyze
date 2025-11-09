@@ -1,0 +1,16 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: cv-etl-monitoring
+  namespace: cvalyze
+  labels:
+    app: cv-etl
+spec:
+  selector:
+    matchLabels:
+      app: cv-etl
+  endpoints:
+  - port: 8002
+    path: /metrics
+    interval: 30s
+    timeout: 10s

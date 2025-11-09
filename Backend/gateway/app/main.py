@@ -3,6 +3,7 @@ Handles routing, authentication, and logging for incoming API requests."""
 
 import os
 import logging
+import sys
 from datetime import datetime
 from typing import List
 from contextlib import asynccontextmanager
@@ -46,27 +47,48 @@ class ISTFormatter(logging.Formatter):
             return dt.strftime(datefmt)
         return dt.isoformat()
 
-# Console handler only (captured by Kubernetes/Loki)
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(ISTFormatter(
+# 1. Create a handler for standard output (for INFO and DEBUG logs)
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setFormatter(ISTFormatter(
     fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 ))
+stdout_handler.addFilter(lambda record: record.levelno <= logging.INFO)
 
-# Logger setup
+# 2. Create a handler for standard error (for WARNING and above)
+stderr_handler = logging.StreamHandler(sys.stderr)
+stderr_handler.setFormatter(ISTFormatter(
+    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+))
+stderr_handler.setLevel(logging.WARNING)
+
+# 3. Configure application's logger
 logger = logging.getLogger("gateway")
 logger.setLevel(logging.INFO)
-
 if logger.hasHandlers():
     logger.handlers.clear()
-
 logger.propagate = False
-logger.addHandler(console_handler)
+logger.addHandler(stdout_handler)
+logger.addHandler(stderr_handler)
 
-# Reduce verbosity of other loggers
+# 4. Configure Uvicorn's logger to use the same handlers
+uvicorn_logger = logging.getLogger("uvicorn")
+uvicorn_logger.setLevel(logging.INFO)
+if uvicorn_logger.hasHandlers():
+    uvicorn_logger.handlers.clear()
+uvicorn_logger.propagate = False
+uvicorn_logger.addHandler(stdout_handler)
+uvicorn_logger.addHandler(stderr_handler)
+
+# 5. Disable the access
+uvicorn_access_logger = logging.getLogger("uvicorn.access")
+if uvicorn_access_logger.hasHandlers():
+    uvicorn_access_logger.handlers.clear()
+uvicorn_access_logger.propagate = False
+
+# 6. Reduce verbosity of other libraries
 logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("uvicorn").setLevel(logging.WARNING)
-logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 logger.info("Starting Gateway Service")
 
