@@ -8,13 +8,7 @@ The CVAlyze backend is built using a microservices architecture, consisting of m
 
 ## 🏗️ Architecture
 
-```
-Backend/
-├── gateway/              # API Gateway Service
-├── etl_service/          # ETL (Extract, Transform, Load) Service
-├── user_service/         # User Management Service
-└── prometheus/           # Monitoring & Metrics Configuration
-```
+![CVAlyze System Architecture](./System%20Architecture/CVAlyze%20System%20Architecture.png)
 
 ## Services
 
