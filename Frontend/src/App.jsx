@@ -19,7 +19,7 @@ const Router = ({ children }) => {
 };
 
 // API Configuration
-const API_BASE = 'https://cvalyze.shop/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE;
 const GEMINI_API_KEY = import.meta.env.VITE_API_KEY;
 
 // Auth Context
