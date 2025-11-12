@@ -2,6 +2,8 @@
 import os
 import time
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
+from functools import wraps
 from fastapi import HTTPException
 from passlib.context import CryptContext
 from jose import jwt
@@ -18,6 +20,24 @@ ALGORITHM='HS256'
 # Password hashing context
 pwd_context=CryptContext(schemes=["argon2"],deprecated="auto")
 
+def retry_on_db_error(max_retries=2):
+    """Simple retry for database cold starts."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(db, *args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(db, *args, **kwargs)
+                except OperationalError as e:
+                    if attempt < max_retries - 1:
+                        time.sleep(0.5)  # Wait 500ms
+                        db.rollback()
+                    else:
+                        raise HTTPException(503, "Database temporarily unavailable")
+        return wrapper
+    return decorator
+
+@retry_on_db_error(max_retries=2)
 def register_user(db: Session,user: schemas.UserCreate):
     """Register a new user in the database."""
     user_exist=db.query(models.User).filter(models.User.username==user.username).first()
@@ -30,6 +50,7 @@ def register_user(db: Session,user: schemas.UserCreate):
     db.refresh(db_user)
     return {'Message':'User registered successfully'}
 
+@retry_on_db_error(max_retries=2)
 def update_pw(db: Session,user: schemas.UpdateUser):
     """Update the password for an existing user."""
     db_user=db.query(models.User).filter(models.User.username==user.username).first()
@@ -41,6 +62,7 @@ def update_pw(db: Session,user: schemas.UpdateUser):
     db.commit()
     return {'Message':'Your password is changed'}
 
+@retry_on_db_error(max_retries=2)
 def delete_user(db: Session,user: schemas.DeleteUser):
     """Delete a user from the database."""
     db_user=db.query(models.User).filter(models.User.username==user.username).first()
@@ -52,6 +74,7 @@ def delete_user(db: Session,user: schemas.DeleteUser):
     db.commit()
     return {'Message':'User is deleted'}
 
+@retry_on_db_error(max_retries=2)
 def authenticate_user(db: Session,user: schemas.UserLogin):
     """Authenticate a user and return a JWT token."""
     db_user=db.query(models.User).filter(models.User.username==user.username).first()

@@ -94,7 +94,7 @@ async def login_user(request: Request):
     return JSONResponse(content=response.json(), status_code=response.status_code)
 
 
-@router.put("/register")
+@router.put("/register/update")
 async def update_pw(request: Request):
     """
     Update a user's password.
@@ -108,7 +108,7 @@ async def update_pw(request: Request):
     logger.info("User password update request received")
 
     async with httpx.AsyncClient() as client:
-        response = await client.put(f"{USER_SERVICE}/register",
+        response = await client.put(f"{USER_SERVICE}/register/update",
                                     json=await request.json())
 
     logger.info("Password update status: %s", response.status_code)

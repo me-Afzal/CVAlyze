@@ -1,23 +1,65 @@
 """Schemas for user operations in the user service."""
-from pydantic import BaseModel
+from pydantic import BaseModel,Field,field_validator
 
 class UserCreate(BaseModel):
-    """Schema for creating a new user."""
-    username: str
-    password: str
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=8)
+
+    # Use field_validator instead of deprecated validator
+    @field_validator('username')
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        """Strip whitespace and convert to lowercase."""
+        return v.strip().lower()
+
+    @field_validator('password')
+    @classmethod
+    def sanitize_password(cls, v: str) -> str:
+        """Strip whitespace from password."""
+        return v.strip()
+
 
 class UserLogin(BaseModel):
-    """Schema for user login."""
     username: str
     password: str
+
+    @field_validator('username')
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        return v.strip().lower()
+
+    @field_validator('password')
+    @classmethod
+    def sanitize_password(cls, v: str) -> str:
+        return v.strip()
+
 
 class UpdateUser(BaseModel):
-    """Schema for updating user password."""
     username: str
     oldpassword: str
-    newpassword: str
+    newpassword: str = Field(..., min_length=8)
+
+    @field_validator('username')
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        return v.strip().lower()
+
+    @field_validator('oldpassword', 'newpassword')
+    @classmethod
+    def sanitize_passwords(cls, v: str) -> str:
+        return v.strip()
+
 
 class DeleteUser(BaseModel):
-    """Schema for deleting a user."""
     username: str
     password: str
+
+    @field_validator('username')
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        return v.strip().lower()
+
+    @field_validator('password')
+    @classmethod
+    def sanitize_password(cls, v: str) -> str:
+        return v.strip()

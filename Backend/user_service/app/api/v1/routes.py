@@ -67,7 +67,7 @@ def login_user(user: schemas.UserLogin, db: Session = Depends(get_db)):
     return result
 
 
-@router.put("/register")
+@router.put("/register/update")
 def update_pw(user: schemas.UpdateUser, db: Session = Depends(get_db)):
     """
     Update an existing user's password.

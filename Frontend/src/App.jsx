@@ -1974,7 +1974,7 @@ const SettingsPage = ({ navigate }) => {
     setMessage('');
 
     try {
-      const response = await fetch(`${API_BASE}/register`, {
+      const response = await fetch(`${API_BASE}/register/update`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
