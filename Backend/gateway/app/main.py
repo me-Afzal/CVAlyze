@@ -4,8 +4,9 @@ Handles routing, authentication, and logging for incoming API requests."""
 import os
 import logging
 import sys
+import re
 from datetime import datetime
-from typing import List
+from typing import List, Set
 from contextlib import asynccontextmanager
 import httpx
 import pytz
@@ -34,6 +35,74 @@ ALGORITHM = "HS256"
 # Service URLs
 USER_SERVICE = "http://cv-user-service:8001/"
 ETL_SERVICE = "http://cv-etl-service:8002/"
+
+# ------------------ Bot Protection Configuration ------------------
+
+# Common bot/scanner paths to block
+BLOCKED_PATHS: Set[str] = {
+    # WordPress paths
+    "/wp-admin", "/wp-login.php", "/wp-content", "/wordpress",
+    "/wp-includes", "/wp-json", "/xmlrpc.php", "/wp-cron.php",
+    
+    # PHP paths
+    "/.env", "/config.php", "/info.php", "/phpinfo.php",
+    "/test.php", "/admin.php", "/shell.php", "/setup.php",
+    
+    # Admin panels
+    "/admin", "/administrator", "/phpmyadmin", "/pma",
+    "/adminer", "/mysql", "/myadmin", "/sqlmanager",
+    
+    # Common exploits
+    "/.git", "/.svn", "/.htaccess", "/.htpasswd",
+    "/backup", "/.backup", "/backups", "/backup.sql",
+    "/database.sql", "/db.sql", "/dump.sql",
+    
+    # Config files
+    "/config.json", "/settings.php", "/configuration.php",
+    "/web.config", "/robots.txt", "/sitemap.xml",
+    
+    # Shell/backdoor attempts
+    "/shell", "/cmd", "/command", "/execute",
+    "/eval", "/system", "/exec",
+    
+    # Other common targets
+    "/cgi-bin", "/scripts", "/aspnet_client",
+    "/.well-known", "/actuator", "/api/actuator",
+    
+    # Java/Spring paths
+    "/manager/html", "/invoker", "/jolokia",
+    
+    # Login attempts
+    "/login.aspx", "/signin", "/user/login",
+    "/admin/login", "/manager/login",
+}
+
+# Patterns for suspicious paths (using regex)
+BLOCKED_PATTERNS = [
+    r"\.\.\/",  # Directory traversal
+    r"\.\.\\",  # Directory traversal (Windows)
+    r"<script",  # XSS attempts
+    r"javascript:",  # XSS attempts
+    r"\.(bak|backup|old|orig|save|swp|tmp)$",  # Backup files
+    r"union.*select",  # SQL injection
+    r"base64_decode",  # PHP exploits
+    r"eval\(",  # Code execution attempts
+    r"\$\{.*\}",  # Template injection
+    r"%00",  # Null byte injection
+    r"\.php\.",  # Double extension attacks
+]
+
+# Compile regex patterns for efficiency
+COMPILED_PATTERNS = [re.compile(pattern, re.IGNORECASE) for pattern in BLOCKED_PATTERNS]
+
+# User agents commonly associated with bots/scanners
+SUSPICIOUS_USER_AGENTS = [
+    "nikto", "sqlmap", "scanner", "nmap", "metasploit",
+    "burp", "zap", "acunetix", "nessus", "openvas",
+    "qualys", "nexpose", "wpscan", "joomla", "drupal",
+    "zgrab", "masscan", "shodan", "censys", "bot",
+    "crawler", "spider", "scraper", "wget", "curl",
+]
 
 # ------------------ Logging Setup with IST Format ------------------
 
@@ -91,6 +160,72 @@ uvicorn_access_logger.propagate = False
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger.info("Starting Gateway Service")
+
+# ------------------ Verification Helper Functions ------------------
+
+def is_bot_request(request: Request) -> bool:
+    """
+    Detect if the request is from a bot/scanner based on various indicators.
+    
+    Args:
+        request: FastAPI Request object
+    
+    Returns:
+        bool: True if request appears to be from a bot/scanner
+    """
+    path = request.url.path.lower()
+    
+    # Check exact path matches
+    for blocked_path in BLOCKED_PATHS:
+        if blocked_path in path:
+            return True
+    
+    # Check regex patterns
+    for pattern in COMPILED_PATTERNS:
+        if pattern.search(path):
+            return True
+    
+    # Check user agent
+    user_agent = request.headers.get("user-agent", "").lower()
+    for suspicious_agent in SUSPICIOUS_USER_AGENTS:
+        if suspicious_agent in user_agent:
+            return True
+    
+    # Check for missing or suspicious headers that bots often have
+    if not user_agent or user_agent == "-":
+        return True
+    
+    # Check query parameters for common attack patterns
+    query_string = str(request.url.query)
+    if query_string:
+        for pattern in COMPILED_PATTERNS:
+            if pattern.search(query_string):
+                return True
+    
+    return False
+
+def get_client_ip(request: Request) -> str:
+    """
+    Get the real client IP address, considering proxy headers.
+    
+    Args:
+        request: FastAPI Request object
+    
+    Returns:
+        str: Client IP address
+    """
+    # Check for proxy headers
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # Take the first IP if there are multiple
+        return forwarded_for.split(",")[0].strip()
+    
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip
+    
+    # Fallback to direct client
+    return request.client.host if request.client else "unknown"
 
 # ------------------ Lifespan for Redis for Rate limit ------------------
 @asynccontextmanager
@@ -153,10 +288,41 @@ app.add_middleware(
 )
 
 # ------------------ Middleware ------------------
+
+@app.middleware("http")
+async def bot_protection_middleware(request: Request, call_next):
+    """
+    Middleware to block bot/scanner requests before they reach the application.
+    This runs before authentication to save resources.
+    """
+    # Skip bot check for legitimate paths
+    if request.url.path in ["/metrics","api/v1/health"]:
+        return await call_next(request)
+    
+    # Check if this is a bot request
+    if is_bot_request(request):
+        client_ip = get_client_ip(request)
+        user_agent = request.headers.get("user-agent", "unknown")
+        
+        logger.warning(
+            "Bot/Scanner request blocked - IP: %s, Path: %s, User-Agent: %s",
+            client_ip,
+            request.url.path,
+            user_agent[:100]  # Truncate long user agents
+        )
+        
+        # Return a generic 404 to not give away information
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Not found"}
+        )
+    
+    return await call_next(request)
+
 @app.middleware("http")
 async def token_auth_middleware(request: Request, call_next):
     """JWT authentication middleware that protects API routes
-        except login/register/metrics."""
+    except login/register/metrics."""
 
     # Allow open routes (including versioned ones)
     open_paths = [
@@ -169,7 +335,7 @@ async def token_auth_middleware(request: Request, call_next):
         "/api/v1/health",
     ]
 
-    path = request.url.path.rstrip("/") # Normalize path
+    path = request.url.path.rstrip("/")  # Normalize path
 
     if any(path == p or path == p.rstrip("/") for p in open_paths):
         return await call_next(request)
@@ -180,21 +346,21 @@ async def token_auth_middleware(request: Request, call_next):
     token = request.headers.get("Authorization")
 
     if not token or not token.startswith("Bearer"):
-        logger.warning("Unauthorized access attempt to %s", path)
+        logger.warning("Unauthorized access attempt to %s from IP: %s", 
+                      path, get_client_ip(request))
         return JSONResponse(status_code=401, content={"detail": "Invalid token"})
 
     try:
         token = token.split(" ")[1]
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         request.state.user = payload.get("sub")
-        logger.info("Authenticated user: %s -> %s", payload.get("sub"),
-                    path)
+        logger.info("Authenticated user: %s -> %s", payload.get("sub"), path)
         response = await call_next(request)
         return response
     except JWTError:
-        logger.error("Token is expired or invalid")
+        logger.error("Token is expired or invalid for IP: %s", get_client_ip(request))
         return JSONResponse(status_code=401,
-                            content={"detail": "Token is expired or invalid"})
+                          content={"detail": "Token is expired or invalid"})
 
 
 # ------------------ Routers ------------------
