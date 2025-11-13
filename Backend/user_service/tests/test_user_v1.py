@@ -69,7 +69,7 @@ def test_update_password():
         "oldpassword": "dummy1234",
         "newpassword": "dummy5678"
     }
-    response = client.put("/api/v1/register", json=update_data)
+    response = client.put("/api/v1/register/update", json=update_data)
     # Can return 200 if successful
     assert response.status_code == 200
     json_data = response.json()
