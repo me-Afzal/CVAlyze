@@ -35,6 +35,23 @@ ETL_SERVICE = "http://cv-etl-service:8002/api/v1"
 # Create a router instance for API version v1
 router = APIRouter()
 
+# ------------------ HTTP Client Configuration ------------------
+
+# Timeout configuration
+DEFAULT_TIMEOUT = httpx.Timeout(
+    timeout=30.0,      # Total timeout
+    connect=10.0,       # Connection timeout
+    read=30.0,         # Read timeout
+    write=10.0         # Write timeout
+)
+
+ETL_TIMEOUT = httpx.Timeout(
+    timeout=300.0,     # 5 minutes for CV upload
+    connect=10.0,
+    read=300.0,
+    write=60.0
+)
+
 
 @router.get("/")
 def root():
@@ -66,7 +83,7 @@ async def register_user(request: Request):
     logger.info("Register user request received")
 
     # Forward registration data to the user service
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
         response = await client.post(f"{USER_SERVICE}/register",
                                      json=await request.json())
 
@@ -87,7 +104,7 @@ async def login_user(request: Request):
     """
     logger.info("User login attempt")
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
         response = await client.post(f"{USER_SERVICE}/login", json=await request.json())
 
     logger.info("Login response: %s", response.status_code)
@@ -107,7 +124,7 @@ async def update_pw(request: Request):
     """
     logger.info("User password update request received")
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
         response = await client.put(f"{USER_SERVICE}/register/update",
                                     json=await request.json())
 
@@ -129,7 +146,7 @@ async def delete_user(request: Request):
     user_id = getattr(request.state, "user", None)
     logger.warning("User deletion requested by: %s", user_id)
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
         response_user = await client.post(f"{USER_SERVICE}/register/delete",
                                           json=await request.json())
 
@@ -170,8 +187,9 @@ async def upload_cvs(files: List[UploadFile] = File(...)):
                                         BytesIO(content), file.content_type)))
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-            response = await client.post(f"{ETL_SERVICE}/upload_cvs", files=files_to_send)
+        async with httpx.AsyncClient(timeout=ETL_TIMEOUT) as client:
+            response = await client.post(f"{ETL_SERVICE}/upload_cvs",
+                                         files=files_to_send)
             result = response.json()
         logger.info("ETL upload successful with status code: %s", response.status_code)
 
