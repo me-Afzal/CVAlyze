@@ -46,6 +46,16 @@ def test_register_user():
         "username": "dummyuser",
         "password": "dummy1234"
     }
+    
+    # First, try to delete the user if it exists (ignore errors)
+    delete_data = {
+        "username": "dummyuser",
+        "password": "dummy1234"
+    }
+    client.post("/api/v1/register/delete", json=delete_data)
+    # We don't check the response - user might not exist
+    
+    # Now register the user
     response = client.post("/api/v1/register", json=dummy_user)
     assert response.status_code == 200
     json_data = response.json()
