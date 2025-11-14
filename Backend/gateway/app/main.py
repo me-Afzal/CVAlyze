@@ -12,7 +12,7 @@ import httpx
 import pytz
 import redis.asyncio as redis
 from fastapi import FastAPI, Request, Depends, Query, HTTPException
-from fastapi.responses import JSONResponse, FileResponse,PlainTextResponse
+from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
@@ -21,9 +21,6 @@ from jose import jwt
 from jose import JWTError
 from dotenv import load_dotenv
 from app.api.v1.routes import router as v1_router
-from jose import jwt,JWTError
-from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
@@ -35,6 +32,30 @@ ALGORITHM = "HS256"
 # Service URLs
 USER_SERVICE = "http://cv-user-service:8001/"
 ETL_SERVICE = "http://cv-etl-service:8002/"
+
+# ------------------ Allowed Paths Configuration ------------------
+
+# Define all allowed paths in your application
+ALLOWED_PATHS: Set[str] = {
+    # Root and documentation
+    "/",
+    "/docs",
+    "/redoc",
+    "/openapi.json",
+    "/metrics",
+    
+    # API v1 routes (public)
+    "/api/v1",
+    "/api/v1/",
+    "/api/v1/register",
+    "/api/v1/login",
+    "/api/v1/health",
+    
+    # API v1 routes (authenticated)
+    "/api/v1/register/update",
+    "/api/v1/register/delete",
+    "/api/v1/upload_cvs",
+}
 
 # ------------------ Bot Protection Configuration ------------------
 
@@ -163,6 +184,37 @@ logger.info("Starting Gateway Service")
 
 # ------------------ Verification Helper Functions ------------------
 
+def is_path_allowed(path: str) -> bool:
+    """
+    Check if the requested path is in the allowed paths list.
+    Uses strict whitelist approach - only exact matches are allowed.
+    
+    Args:
+        path: The request path to check
+    
+    Returns:
+        bool: True if path is allowed, False otherwise
+    """
+    # Normalize path by removing trailing slashes
+    normalized_path = path.rstrip("/")
+    
+    # Handle root path
+    if normalized_path == "" or normalized_path == "/":
+        return True
+    
+    # Check for exact matches in ALLOWED_PATHS
+    # We need to check both the original path and normalized version
+    if path in ALLOWED_PATHS or normalized_path in ALLOWED_PATHS:
+        return True
+    
+    # Also check with trailing slash added (for cases like /api/v1 vs /api/v1/)
+    path_with_slash = normalized_path + "/"
+    if path_with_slash in ALLOWED_PATHS:
+        return True
+    
+    # If no exact match found, deny access
+    return False
+
 def is_bot_request(request: Request) -> bool:
     """
     Detect if the request is from a bot/scanner based on various indicators.
@@ -288,41 +340,17 @@ app.add_middleware(
 )
 
 # ------------------ Middleware ------------------
-
-@app.middleware("http")
-async def bot_protection_middleware(request: Request, call_next):
-    """
-    Middleware to block bot/scanner requests before they reach the application.
-    This runs before authentication to save resources.
-    """
-    # Skip bot check for legitimate paths
-    if request.url.path in ["/metrics","api/v1/health"]:
-        return await call_next(request)
-    
-    # Check if this is a bot request
-    if is_bot_request(request):
-        client_ip = get_client_ip(request)
-        user_agent = request.headers.get("user-agent", "unknown")
-        
-        logger.warning(
-            "Bot/Scanner request blocked - IP: %s, Path: %s, User-Agent: %s",
-            client_ip,
-            request.url.path,
-            user_agent[:100]  # Truncate long user agents
-        )
-        
-        # Return a generic 404 to not give away information
-        return JSONResponse(
-            status_code=404,
-            content={"detail": "Not found"}
-        )
-    
-    return await call_next(request)
+# IMPORTANT: Middleware executes in REVERSE order of definition
+# Define token_auth_middleware FIRST so bot_protection runs FIRST
 
 @app.middleware("http")
 async def token_auth_middleware(request: Request, call_next):
     """JWT authentication middleware that protects API routes
-    except login/register/metrics."""
+    except login/register/metrics.
+    
+    NOTE: This middleware runs AFTER bot_protection_middleware
+    (defined below), so malicious requests should already be blocked.
+    """
 
     # Allow open routes (including versioned ones)
     open_paths = [
@@ -346,7 +374,7 @@ async def token_auth_middleware(request: Request, call_next):
     token = request.headers.get("Authorization")
 
     if not token or not token.startswith("Bearer"):
-        logger.warning("Unauthorized access attempt to %s from IP: %s", 
+        logger.warning("Missing/invalid auth token | Path: %s | IP: %s", 
                       path, get_client_ip(request))
         return JSONResponse(status_code=401, content={"detail": "Invalid token"})
 
@@ -358,15 +386,67 @@ async def token_auth_middleware(request: Request, call_next):
         response = await call_next(request)
         return response
     except JWTError:
-        logger.error("Token is expired or invalid for IP: %s", get_client_ip(request))
+        logger.error("JWT validation failed | IP: %s", get_client_ip(request))
         return JSONResponse(status_code=401,
                           content={"detail": "Token is expired or invalid"})
 
 
+@app.middleware("http")
+async def bot_protection_middleware(request: Request, call_next):
+    """
+    Middleware to block bot/scanner requests before they reach the application.
+    This runs FIRST (before authentication) to save resources.
+    Uses a strict whitelist approach - only explicitly allowed paths can proceed.
+    
+    EXECUTION ORDER: Because this is defined AFTER token_auth_middleware,
+    it executes BEFORE it (middleware runs in reverse order).
+    """
+    path = request.url.path
+    client_ip = get_client_ip(request)
+    
+    # CRITICAL: Check if path is in whitelist FIRST
+    if not is_path_allowed(path):
+        user_agent = request.headers.get("user-agent", "unknown")
+        
+        logger.warning(
+            "BLOCKED - Non-whitelisted path | IP: %s | Path: %s | UA: %s",
+            client_ip,
+            path,
+            user_agent[:100]
+        )
+        
+        # Return 404 to avoid information disclosure
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Not found"}
+        )
+    
+    # SECONDARY: Check for known bot/scanner patterns
+    if is_bot_request(request):
+        user_agent = request.headers.get("user-agent", "unknown")
+        
+        logger.warning(
+            "BLOCKED - Bot pattern detected | IP: %s | Path: %s | UA: %s",
+            client_ip,
+            path,
+            user_agent[:100]
+        )
+        
+        # Return 404 to avoid information disclosure
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Not found"}
+        )
+    
+    # Path is allowed and not a bot - proceed
+    return await call_next(request)
+
+
 # ------------------ Routers ------------------
+# Register API v1 router with rate limiting of 25 requests per minute
 app.include_router(v1_router,
                    prefix="/api/v1",
-                   dependencies=[Depends(RateLimiter(times=100,
+                   dependencies=[Depends(RateLimiter(times=25,
                                                      seconds=60))])
 
 # ------------------ Root Endpoint -----------------

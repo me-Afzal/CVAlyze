@@ -817,7 +817,7 @@ Client (with JWT) → Gateway (validates JWT) → Microservice
 
 ### CORS Configuration
 ```python
-allow_origins=["https://cvalyze.shop"]
+allow_origins=["https:cv-alyze.vercel.app"]
 allow_credentials=True
 allow_methods=["*"]
 allow_headers=["*"]
