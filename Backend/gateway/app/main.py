@@ -441,13 +441,27 @@ async def bot_protection_middleware(request: Request, call_next):
     # Path is allowed and not a bot - proceed
     return await call_next(request)
 
+# Global rate limiter middleware
+@app.middleware("http")
+async def global_rate_limiter(request: Request, call_next):
+
+    # allow health checks
+    if request.url.path in ["/metrics" , "/api/v1/health"]:
+        return await call_next(request)
+
+    # 20 requests per minute per IP
+    limiter = RateLimiter(times=20, seconds=60)
+    
+    # RateLimiter requires both request and response
+    dummy_response = JSONResponse({"detail": "Rate limited"})
+
+    await limiter(request, dummy_response)
+
+    return await call_next(request)
 
 # ------------------ Routers ------------------
-# Register API v1 router with rate limiting of 25 requests per minute
 app.include_router(v1_router,
-                   prefix="/api/v1",
-                   dependencies=[Depends(RateLimiter(times=25,
-                                                     seconds=60))])
+                   prefix="/api/v1")
 
 # ------------------ Root Endpoint -----------------
 @app.get("/")
