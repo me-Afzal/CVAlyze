@@ -26,11 +26,25 @@ def mock_rate_limiter(monkeypatch):
 
     # Mock Redis-like async client
     class MockRedis:
+        def __init__(self):
+            self.storage = {}
+            self.expiry = {}
+
+        async def incr(self, key):
+            self.storage[key] = self.storage.get(key, 0) + 1
+            return self.storage[key]
+
+        async def expire(self, key, seconds):
+            # Ignore TTL timer (not needed in tests)
+            self.expiry[key] = seconds
+            return True
+
         async def evalsha(self, *args, **kwargs):
-            return None  # Simulate successful Redis script execution
+            return None
 
     mock_redis = MockRedis()
     monkeypatch.setattr(FastAPILimiter, "redis", mock_redis)
+
 
     # Async identifier
     async def mock_identifier(request):

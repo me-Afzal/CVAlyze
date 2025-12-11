@@ -445,19 +445,39 @@ async def bot_protection_middleware(request: Request, call_next):
 @app.middleware("http")
 async def global_rate_limiter(request: Request, call_next):
 
-    # allow health checks
-    if request.url.path in ["/metrics" , "/api/v1/health"]:
+    # Allow public endpoints
+    if request.url.path in [
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/metrics",
+        "/api/v1/health",
+    ]:
         return await call_next(request)
 
     # 20 requests per minute per IP
-    limiter = RateLimiter(times=20, seconds=60)
-    
-    # RateLimiter requires both request and response
-    dummy_response = JSONResponse({"detail": "Rate limited"})
+    redis_conn = FastAPILimiter.redis  # use limiter’s redis connection
 
-    await limiter(request, dummy_response)
+    if redis_conn:
+        client_ip = request.client.host
+        key = f"rl:{client_ip}"
+
+        # increment counter
+        count = await redis_conn.incr(key)
+
+        if count == 1:
+            # first access → set expiry for window (60 seconds)
+            await redis_conn.expire(key, 60)
+
+        if count > 20:
+            return JSONResponse(
+                status_code=429,
+                content={"detail":
+                "Too Many Requests - Slow down"},
+            )
 
     return await call_next(request)
+
 
 # ------------------ Routers ------------------
 app.include_router(v1_router,

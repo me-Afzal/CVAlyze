@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: cv-gateway
-          image: afzal23/cv_gateway:v23
+          image: afzal23/cv_gateway:v24
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
