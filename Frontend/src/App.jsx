@@ -1978,7 +1978,7 @@ If asked for contact info, reply: "I can't share personal contact details for pr
               onClick={() => sendMessage('Top 5 AI/ML candidates based on skill, experience, education')}
               className="flex-1 min-w-[200px] px-3 md:px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-blue-900 text-xs md:text-sm hover:bg-blue-200 transition-all text-left"
             >
-              💡 Top 5 AI/ML candidates based on skill, experience, education
+              Top 5 AI/ML candidates based on skill, experience, education
             </button>
             <button
               onClick={() => sendMessage('Give me a skills summary across all candidates')}
