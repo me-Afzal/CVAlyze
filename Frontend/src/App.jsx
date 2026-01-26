@@ -1797,28 +1797,26 @@ const ChatAssistant = ({ cvData, onClose }) => {
   // Sanitize CV data - remove sensitive information
   const sanitizeCvData = (data) => {
     return data.map(cv => {
-      // Create a sanitized version of the CV
-      const sanitized = {
-        name: cv.name,
-        profession: cv.profession,
-        gender: cv.gender,
-        location: cv.location,
-        country: cv.country,
-        skills: cv.skills,
-        education: cv.education,
-        experience: cv.experience,
-        certifications: cv.certifications,
-        achievements: cv.achievements,
-      };
+      const sanitized = {};
 
-      // Handle projects - keep only names, remove links
-      if (cv.projects && Array.isArray(cv.projects)) {
-        sanitized.projects = cv.projects.map(project => {
-          if (typeof project === 'object' && project !== null) {
-            return project.name || 'Unnamed Project';
-          }
-          return project;
-        });
+      // Only add fields if they have values
+      if (cv.name) sanitized.name = cv.name;
+      if (cv.profession) sanitized.profession = cv.profession;
+      if (cv.gender) sanitized.gender = cv.gender;
+      if (cv.location) sanitized.location = cv.location;
+      if (cv.skills?.length) sanitized.skills = cv.skills;
+      if (cv.education?.length) sanitized.education = cv.education;
+      if (cv.experience?.length) sanitized.experience = cv.experience;
+      if (cv.certifications?.length) sanitized.certifications = cv.certifications;
+      if (cv.achievements?.length) sanitized.achievements = cv.achievements;
+
+      // Projects - only add if exists and has items
+      if (cv.projects?.length) {
+        const projectNames = cv.projects
+          .map(p => (typeof p === 'object' ? p?.name : p))
+          .filter(Boolean);
+
+        if (projectNames.length) sanitized.projects = projectNames;
       }
 
       return sanitized;
@@ -1842,22 +1840,18 @@ const ChatAssistant = ({ cvData, onClose }) => {
       // Use sanitized data for AI
       const sanitizedData = sanitizeCvData(cvData);
 
-      const systemPrompt = `You are CVAlyze, an HR analysis assistant for evaluating candidates.
+      const systemPrompt = `CVAlyze - HR Assistant
 
-**CANDIDATE DATA:**
-${JSON.stringify(sanitizedData)}
+DATA:${JSON.stringify(sanitizedData)}
 
-**PRIVACY (STRICT):**
-You have NO access to: emails, phone numbers, GitHub/LinkedIn/portfolio links, coordinates.
-If asked for contact info, reply: "I can't share personal contact details for privacy. Use official channels to reach candidates."
+PRIVATE: emails/phones/links/coords → "Protected. Use official channels."
 
-**YOU CAN DISCUSS:** Names, professions, skills, education, experience, certifications, achievements, project names, location/country, gender.
+STYLE: Terse. Bullets. No fluff. Key facts only. 2-3 sentences max per point.
+- Rankings: name + one reason
+- Lists: bullets, not prose
+- Skip intros like "Great question"
 
-**RULES:**
-- Answer candidate queries using data above; be concise and insightful
-- For casual/off-topic messages, respond naturally without referencing data
-- Never fabricate data
-- Use markdown formatting`;
+RULES: Data-only answers. No fabrication. Markdown. Casual = brief reply.`;
 
       const limitedMessages = messages.slice(1).slice(-4);
 
