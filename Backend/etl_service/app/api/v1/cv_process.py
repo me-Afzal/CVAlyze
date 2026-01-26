@@ -171,26 +171,35 @@ def _load_to_bigquery_sync(df):
     for col in list_columns:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: x if isinstance(x, list) else [])
+    
     # Sanitize to remove any null elements from arrays
     df = sanitize_dataframe_for_bigquery(df)
     
-    client = bigquery.Client()
-    table_id = "project-72dfbe56-9a82-4b81-a1a.cv_warehouse.cv_data"
-    job_config = bigquery.LoadJobConfig(
-        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-        autodetect=True,
-    )
+    try:
+        client = bigquery.Client()
+        table_id = "powerful-anchor-485506-h3.cv_warehouse.cv_data"
+        job_config = bigquery.LoadJobConfig(
+            write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+            autodetect=True,
+        )
 
-    logger.info("Uploading %d CV records to BigQuery table: %s", len(df), table_id)
-    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
-    job.result()
-    logger.info("BigQuery upload completed successfully.")
-    return True
+        logger.info("Uploading %d CV records to BigQuery table: %s", len(df), table_id)
+        job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+        job.result()
+        logger.info("BigQuery upload completed successfully.")
+        return True
+    except Exception as e:
+        logger.exception("BigQuery upload failed: %s", e)
+        return False  # Return False instead of raising exception
 
 
 async def load_to_bigquery(df):
     """Asynchronous wrapper to load DataFrame to BigQuery."""
-    return await asyncio.to_thread(_load_to_bigquery_sync, df)
+    try:
+        return await asyncio.to_thread(_load_to_bigquery_sync, df)
+    except Exception as e:
+        logger.exception("Async BigQuery upload failed: %s", e)
+        return False
 
 
 # ------------------ CV Processing ------------------
@@ -223,6 +232,7 @@ async def process_cvs(files):
 
     # Initialize json_response as empty list
     json_response = []
+    bq_upload_success = False  # Track BigQuery upload status
 
     # Feature Engineering: Data Enrichment
     expected_cols = ['name', 'profession', 'phone_number', 'email', 'location',
@@ -245,24 +255,38 @@ async def process_cvs(files):
 
     if not df.empty:
         # Latitude, Longitude, Country and Gender Enrichment
-        logger.info("Enriching data with geolocation and gender for %d candidates.",
-                    len(df))
+        logger.info("Enriching data with geolocation and gender for %d candidates.", len(df))
         df[['latitude', 'longitude', 'country']] = df['location'].apply(
             lambda loc: pd.Series(get_lat_lon(loc))
         )
         df['gender'] = df['name'].apply(get_gender)
 
-        # Convert DataFrame to JSON records
+        # Convert DataFrame to JSON records BEFORE BigQuery upload
+        # This ensures we have the response even if BQ fails
         json_response = df.to_dict(orient='records')
 
-        # Load to BigQuery
-        success = await load_to_bigquery(df)
-        if success:
-            await send_extraction_success_email() # Send notification email
+        # Try to load to BigQuery (won't break if it fails)
+        try:
+            bq_upload_success = await load_to_bigquery(df)
+        except Exception as e:
+            logger.exception("Unexpected error during BigQuery upload: %s", e)
+            bq_upload_success = False
+
+        # Send email only if BigQuery upload succeeded
+        if bq_upload_success:
+            try:
+                await send_extraction_success_email()
+            except Exception as e:
+                logger.exception("Failed to send notification email: %s", e)
         else:
-            logger.error("BigQuery upload failed — email not sent.")
+            logger.warning("BigQuery upload failed — skipping email notification.")
     else:
         logger.warning("No valid CV data found to upload.")
 
-    logger.info("CV processing completed.")
-    return {"jsonCv": json_response, "errors": errors}
+    logger.info("CV processing completed. BQ Upload: %s", 
+                "Success" if bq_upload_success else "Failed/Skipped")
+    
+    return {
+        "jsonCv": json_response, 
+        "errors": errors
+    }

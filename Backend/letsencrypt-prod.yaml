@@ -8,7 +8,7 @@ spec:
     server: https://acme-v02.api.letsencrypt.org/directory
     
     # Your email (for certificate expiry notifications)
-    email: afzalkottukkal23@gmail.com
+    email: skrillxgaming23@gmail.com
     
     # Secret to store the account private key
     privateKeySecretRef:

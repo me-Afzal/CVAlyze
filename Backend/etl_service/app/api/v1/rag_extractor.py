@@ -76,6 +76,44 @@ class CvExtractor:
 
         return data
 
+    def extract_json_from_llm(self, text: str) -> dict:
+        """
+        Extract and parse JSON safely from LLM output.
+        """
+        # Try extracting JSON inside ```json ... ```
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+        if match:
+            json_text = match.group(1)
+        else:
+            # Fallback: extract first JSON object (non-greedy approach)
+            # Find the first { and then match balanced braces
+            start = text.find('{')
+            if start == -1:
+                raise ValueError("No JSON found in LLM output")
+
+            # Simple approach: find matching closing brace
+            brace_count = 0
+            end = start
+            for i, char in enumerate(text[start:], start):
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end = i + 1
+                        break
+                    
+            json_text = text[start:end]
+
+            if not json_text:
+                raise ValueError("No JSON found in LLM output")
+
+        # Parse JSON
+        try:
+            return json.loads(json_text)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON returned by LLM: {e}")
+
     # ---------- Main extraction ----------
     def extract(self, text):
         """Extract structured CV sections with Prompt Engineering."""
@@ -122,8 +160,7 @@ Resume Text:
                                      json=payload,
                                      timeout=180).json()
             raw_text = response["candidates"][0]["content"]["parts"][0]["text"]
-            clean_json_text = re.sub(r"^```[a-zA-Z]*|```$", "", raw_text).strip()
-            data = json.loads(clean_json_text)
+            data = self.extract_json_from_llm(raw_text)
             data = self.clean_empty_lists_as_none(data)
             data = self.normalize_links(data)
             return data

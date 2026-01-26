@@ -22,7 +22,7 @@ spec:
       serviceAccountName: cv-etl-sa
       containers:
         - name: cv-etl
-          image: afzal23/cv_etl_service:v14
+          image: afzal23/cv_etl_service:v16
           imagePullPolicy: Always
           ports:
             - containerPort: 8002
