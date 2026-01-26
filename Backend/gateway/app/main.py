@@ -4,9 +4,8 @@ Handles routing, authentication, and logging for incoming API requests."""
 import os
 import logging
 import sys
-import re
 from datetime import datetime
-from typing import List, Set
+from typing import Set
 from contextlib import asynccontextmanager
 import httpx
 import pytz
@@ -14,8 +13,6 @@ import redis.asyncio as redis
 from fastapi import FastAPI, Request, Depends, Query, HTTPException
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
 from prometheus_fastapi_instrumentator import Instrumentator
 from jose import jwt
 from jose import JWTError
@@ -37,16 +34,13 @@ ETL_SERVICE = "http://cv-etl-service:8002/"
 
 # Define all allowed paths in your application
 ALLOWED_PATHS: Set[str] = {
-    # Root and documentation
-    "/",
+    # Documentation and Metrics Scrapping
     "/docs",
     "/redoc",
     "/openapi.json",
     "/metrics",
     
     # API v1 routes (public)
-    "/api/v1",
-    "/api/v1/",
     "/api/v1/register",
     "/api/v1/login",
     "/api/v1/health",
@@ -56,74 +50,6 @@ ALLOWED_PATHS: Set[str] = {
     "/api/v1/register/delete",
     "/api/v1/upload_cvs",
 }
-
-# ------------------ Bot Protection Configuration ------------------
-
-# Common bot/scanner paths to block
-BLOCKED_PATHS: Set[str] = {
-    # WordPress paths
-    "/wp-admin", "/wp-login.php", "/wp-content", "/wordpress",
-    "/wp-includes", "/wp-json", "/xmlrpc.php", "/wp-cron.php",
-    
-    # PHP paths
-    "/.env", "/config.php", "/info.php", "/phpinfo.php",
-    "/test.php", "/admin.php", "/shell.php", "/setup.php",
-    
-    # Admin panels
-    "/admin", "/administrator", "/phpmyadmin", "/pma",
-    "/adminer", "/mysql", "/myadmin", "/sqlmanager",
-    
-    # Common exploits
-    "/.git", "/.svn", "/.htaccess", "/.htpasswd",
-    "/backup", "/.backup", "/backups", "/backup.sql",
-    "/database.sql", "/db.sql", "/dump.sql",
-    
-    # Config files
-    "/config.json", "/settings.php", "/configuration.php",
-    "/web.config", "/robots.txt", "/sitemap.xml",
-    
-    # Shell/backdoor attempts
-    "/shell", "/cmd", "/command", "/execute",
-    "/eval", "/system", "/exec",
-    
-    # Other common targets
-    "/cgi-bin", "/scripts", "/aspnet_client",
-    "/.well-known", "/actuator", "/api/actuator",
-    
-    # Java/Spring paths
-    "/manager/html", "/invoker", "/jolokia",
-    
-    # Login attempts
-    "/login.aspx", "/signin", "/user/login",
-    "/admin/login", "/manager/login",
-}
-
-# Patterns for suspicious paths (using regex)
-BLOCKED_PATTERNS = [
-    r"\.\.\/",  # Directory traversal
-    r"\.\.\\",  # Directory traversal (Windows)
-    r"<script",  # XSS attempts
-    r"javascript:",  # XSS attempts
-    r"\.(bak|backup|old|orig|save|swp|tmp)$",  # Backup files
-    r"union.*select",  # SQL injection
-    r"base64_decode",  # PHP exploits
-    r"eval\(",  # Code execution attempts
-    r"\$\{.*\}",  # Template injection
-    r"%00",  # Null byte injection
-    r"\.php\.",  # Double extension attacks
-]
-
-# Compile regex patterns for efficiency
-COMPILED_PATTERNS = [re.compile(pattern, re.IGNORECASE) for pattern in BLOCKED_PATTERNS]
-
-# User agents commonly associated with bots/scanners
-SUSPICIOUS_USER_AGENTS = [
-    "nikto", "sqlmap", "scanner", "nmap", "metasploit",
-    "burp", "zap", "acunetix", "nessus", "openvas",
-    "qualys", "nexpose", "wpscan", "joomla", "drupal",
-    "zgrab", "masscan", "shodan", "censys", "bot",
-    "crawler", "spider", "scraper", "wget", "curl",
-]
 
 # ------------------ Logging Setup with IST Format ------------------
 
@@ -182,7 +108,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger.info("Starting Gateway Service")
 
-# ------------------ Verification Helper Functions ------------------
+# ------------------ Helper Functions ------------------
 
 def is_path_allowed(path: str) -> bool:
     """
@@ -198,10 +124,6 @@ def is_path_allowed(path: str) -> bool:
     # Normalize path by removing trailing slashes
     normalized_path = path.rstrip("/")
     
-    # Handle root path
-    if normalized_path == "" or normalized_path == "/":
-        return True
-    
     # Check for exact matches in ALLOWED_PATHS
     # We need to check both the original path and normalized version
     if path in ALLOWED_PATHS or normalized_path in ALLOWED_PATHS:
@@ -213,47 +135,6 @@ def is_path_allowed(path: str) -> bool:
         return True
     
     # If no exact match found, deny access
-    return False
-
-def is_bot_request(request: Request) -> bool:
-    """
-    Detect if the request is from a bot/scanner based on various indicators.
-    
-    Args:
-        request: FastAPI Request object
-    
-    Returns:
-        bool: True if request appears to be from a bot/scanner
-    """
-    path = request.url.path.lower()
-    
-    # Check exact path matches
-    for blocked_path in BLOCKED_PATHS:
-        if blocked_path in path:
-            return True
-    
-    # Check regex patterns
-    for pattern in COMPILED_PATTERNS:
-        if pattern.search(path):
-            return True
-    
-    # Check user agent
-    user_agent = request.headers.get("user-agent", "").lower()
-    for suspicious_agent in SUSPICIOUS_USER_AGENTS:
-        if suspicious_agent in user_agent:
-            return True
-    
-    # Check for missing or suspicious headers that bots often have
-    if not user_agent or user_agent == "-":
-        return True
-    
-    # Check query parameters for common attack patterns
-    query_string = str(request.url.query)
-    if query_string:
-        for pattern in COMPILED_PATTERNS:
-            if pattern.search(query_string):
-                return True
-    
     return False
 
 def get_client_ip(request: Request) -> str:
@@ -291,7 +172,7 @@ async def lifespan(app: FastAPI):
             REDIS_URL,
             encoding="utf-8",
             decode_responses=True,
-            max_connections=10,  # Connection pooling
+            max_connections=50,  # Connection pooling
             socket_connect_timeout=5,  # Connection timeout
             socket_timeout=5,  # Operation timeout
             retry_on_timeout=True,
@@ -301,22 +182,25 @@ async def lifespan(app: FastAPI):
         # Test the connection
         await redis_conn.ping()
         
-        await FastAPILimiter.init(redis_conn)
+        # Store redis connection in app state
+        app.state.redis = redis_conn
         logger.info("Redis connected successfully for rate limiting")
         
     except redis.ConnectionError as e:
         logger.error(f"Failed to connect to Redis: {e}")
         logger.warning("Rate limiting will be disabled")
-        
+        app.state.redis = None
+
     except Exception as e:
         logger.error(f"Unexpected error connecting to Redis: {e}")
+        app.state.redis = None
 
     yield  # App runs here
 
     # Shutdown logic
     if redis_conn:
         try:
-            await redis_conn.close()
+            await redis_conn.aclose()
             logger.info("Redis connection closed")
         except Exception as e:
             logger.error(f"Error closing Redis connection: {e}")
@@ -341,15 +225,15 @@ app.add_middleware(
 
 # ------------------ Middleware ------------------
 # IMPORTANT: Middleware executes in REVERSE order of definition
-# Define token_auth_middleware FIRST so bot_protection runs FIRST
+# OPTIMAL EXECUTION ORDER: path_whitelist → rate_limiter → token_auth
+# (Define in reverse: auth first, rate limiter second, whitelist last)
 
 @app.middleware("http")
 async def token_auth_middleware(request: Request, call_next):
     """JWT authentication middleware that protects API routes
     except login/register/metrics.
     
-    NOTE: This middleware runs AFTER bot_protection_middleware
-    (defined below), so malicious requests should already be blocked.
+    EXECUTION ORDER: Runs THIRD (last) - only for whitelisted, rate-limited requests.
     """
 
     # Allow open routes (including versioned ones)
@@ -392,60 +276,13 @@ async def token_auth_middleware(request: Request, call_next):
 
 
 @app.middleware("http")
-async def bot_protection_middleware(request: Request, call_next):
-    """
-    Middleware to block bot/scanner requests before they reach the application.
-    This runs FIRST (before authentication) to save resources.
-    Uses a strict whitelist approach - only explicitly allowed paths can proceed.
-    
-    EXECUTION ORDER: Because this is defined AFTER token_auth_middleware,
-    it executes BEFORE it (middleware runs in reverse order).
-    """
-    path = request.url.path
-    client_ip = get_client_ip(request)
-    
-    # CRITICAL: Check if path is in whitelist FIRST
-    if not is_path_allowed(path):
-        user_agent = request.headers.get("user-agent", "unknown")
-        
-        logger.warning(
-            "BLOCKED - Non-whitelisted path | IP: %s | Path: %s | UA: %s",
-            client_ip,
-            path,
-            user_agent[:100]
-        )
-        
-        # Return 404 to avoid information disclosure
-        return JSONResponse(
-            status_code=404,
-            content={"detail": "Not found"}
-        )
-    
-    # SECONDARY: Check for known bot/scanner patterns
-    if is_bot_request(request):
-        user_agent = request.headers.get("user-agent", "unknown")
-        
-        logger.warning(
-            "BLOCKED - Bot pattern detected | IP: %s | Path: %s | UA: %s",
-            client_ip,
-            path,
-            user_agent[:100]
-        )
-        
-        # Return 404 to avoid information disclosure
-        return JSONResponse(
-            status_code=404,
-            content={"detail": "Not found"}
-        )
-    
-    # Path is allowed and not a bot - proceed
-    return await call_next(request)
-
-# Global rate limiter middleware
-@app.middleware("http")
 async def global_rate_limiter(request: Request, call_next):
-
-    # Allow public endpoints
+    """
+    Rate limiting middleware - 15 requests per minute per IP.
+    
+    EXECUTION ORDER: Runs SECOND - only for whitelisted paths (saves Redis resources).
+    """
+    # Allow public endpoints without rate limiting
     if request.url.path in [
         "/docs",
         "/redoc",
@@ -455,33 +292,81 @@ async def global_rate_limiter(request: Request, call_next):
     ]:
         return await call_next(request)
 
-    # 20 requests per minute per IP
-    redis_conn = FastAPILimiter.redis  # use limiter’s redis connection
+    # Use the shared Redis connection from app state
+    redis_conn = request.app.state.redis
 
     if redis_conn:
-        client_ip = request.client.host
-        key = f"rl:{client_ip}"
+        try:
+            client_ip = get_client_ip(request)
+            key = f"rl:{client_ip}"
 
-        # increment counter
-        count = await redis_conn.incr(key)
+            # Increment counter
+            count = await redis_conn.incr(key)
 
-        if count == 1:
-            # first access → set expiry for window (60 seconds)
-            await redis_conn.expire(key, 60)
+            if count == 1:
+                # First access → set expiry for window (60 seconds)
+                await redis_conn.expire(key, 60)
 
-        if count > 20:
-            return JSONResponse(
-                status_code=429,
-                content={"detail":
-                "Too Many Requests - Slow down"},
-            )
+            if count > 15:
+                logger.warning(
+                    "Rate limit exceeded | IP: %s | Count: %d",
+                    client_ip,
+                    count
+                )
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too Many Requests - Slow down"},
+                )
+        except redis.ConnectionError as e:
+            logger.error(f"Redis connection error in rate limiter: {e}")
+            # Continue without rate limiting if Redis fails
+            pass
+        except Exception as e:
+            logger.error(f"Unexpected error in rate limiter: {e}")
+            pass
 
     return await call_next(request)
 
 
+@app.middleware("http")
+async def path_whitelist_middleware(request: Request, call_next):
+    """
+    Middleware to enforce strict path whitelisting.
+    Only explicitly allowed paths in ALLOWED_PATHS can proceed.
+    
+    EXECUTION ORDER: Runs FIRST - blocks malicious paths before any processing.
+    This is the most efficient placement as it:
+    - Blocks attacks immediately with minimal processing
+    - Prevents wasting Redis operations on bad paths
+    - Protects rate limiter and auth middleware from spam
+    """
+    path = request.url.path
+    
+    # Check if path is in whitelist
+    if not is_path_allowed(path):
+        client_ip = get_client_ip(request)
+        user_agent = request.headers.get("user-agent", "unknown")
+        
+        logger.warning(
+            "BLOCKED - Non-whitelisted path | IP: %s | Path: %s | UA: %s",
+            client_ip,
+            path,
+            user_agent[:100]  # Truncate user agent to avoid log spam
+        )
+        
+        # Return 404 to avoid information disclosure
+        # (Don't reveal that path filtering is active)
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Not found"}
+        )
+    
+    # Path is whitelisted - proceed to next middleware (rate limiter)
+    return await call_next(request)
+
+
 # ------------------ Routers ------------------
-app.include_router(v1_router,
-                   prefix="/api/v1")
+app.include_router(v1_router, prefix="/api/v1")
 
 # ------------------ Root Endpoint -----------------
 @app.get("/")
