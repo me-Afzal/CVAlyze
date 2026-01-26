@@ -186,7 +186,7 @@ const buildVectorDB = async (chunks, apiKey, onProgress) => {
 };
 
 // Search for similar chunks
-const searchSimilarChunks = async (query, vectorDB, apiKey, topK = 3) => {
+const searchSimilarChunks = async (query, vectorDB, apiKey, topK = 10) => {
   const queryEmbedding = await getEmbedding(query, apiKey);
 
   if (!queryEmbedding) {
@@ -205,6 +205,127 @@ const searchSimilarChunks = async (query, vectorDB, apiKey, topK = 3) => {
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, topK);
 };
+
+// ==================== VECTOR DB STORAGE MANAGER ====================
+
+// Better hash function for data comparison
+const simpleHash = (data) => {
+  const str = JSON.stringify(data);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString();
+};
+
+// Storage management utility
+const VectorDBStorage = {
+  CACHE_KEY: 'vector_db_cache',
+  HASH_KEY: 'cv_data_hash',
+  TIMESTAMP_KEY: 'vector_db_timestamp',
+  MAX_CACHE_AGE: 24 * 60 * 60 * 1000, // 24 hours
+
+  save(vectorDB, cvData) {
+    try {
+      const hash = simpleHash(cvData);
+      const data = JSON.stringify(vectorDB);
+
+      // Check size (localStorage limit is ~5MB)
+      const sizeInMB = new Blob([data]).size / (1024 * 1024);
+      console.log(`Vector DB size: ${sizeInMB.toFixed(2)} MB`);
+
+      if (sizeInMB > 4) {
+        console.warn('Vector DB too large for localStorage');
+        return false;
+      }
+
+      localStorage.setItem(this.CACHE_KEY, data);
+      localStorage.setItem(this.HASH_KEY, hash);
+      localStorage.setItem(this.TIMESTAMP_KEY, Date.now().toString());
+      console.log('Vector DB saved to cache');
+      return true;
+    } catch (error) {
+      console.error('Failed to save vector DB:', error);
+      this.clear();
+      return false;
+    }
+  },
+
+  load(cvData) {
+    try {
+      const cached = localStorage.getItem(this.CACHE_KEY);
+      const cachedHash = localStorage.getItem(this.HASH_KEY);
+      const timestamp = localStorage.getItem(this.TIMESTAMP_KEY);
+
+      if (!cached || !cachedHash) {
+        console.log('No vector DB cache found');
+        return null;
+      }
+
+      // Check cache age
+      if (timestamp && (Date.now() - parseInt(timestamp)) > this.MAX_CACHE_AGE) {
+        console.log('Vector DB cache expired');
+        this.clear();
+        return null;
+      }
+
+      // Check hash match
+      const currentHash = simpleHash(cvData);
+      if (cachedHash !== currentHash) {
+        console.log('CV data changed, invalidating cache');
+        this.clear();
+        return null;
+      }
+
+      const parsed = JSON.parse(cached);
+
+      // Validate structure
+      if (!Array.isArray(parsed) || parsed.length === 0 || !parsed[0].embedding) {
+        console.log('Invalid cache structure');
+        this.clear();
+        return null;
+      }
+
+      console.log(`Loaded ${parsed.length} embeddings from cache`);
+      return parsed;
+    } catch (error) {
+      console.error('Failed to load vector DB:', error);
+      this.clear();
+      return null;
+    }
+  },
+
+  clear() {
+    localStorage.removeItem(this.CACHE_KEY);
+    localStorage.removeItem(this.HASH_KEY);
+    localStorage.removeItem(this.TIMESTAMP_KEY);
+    console.log('Vector DB cache cleared');
+  },
+
+  exists() {
+    return localStorage.getItem(this.CACHE_KEY) !== null;
+  },
+
+  getInfo() {
+    const cached = localStorage.getItem(this.CACHE_KEY);
+    const timestamp = localStorage.getItem(this.TIMESTAMP_KEY);
+
+    if (!cached) return null;
+
+    const sizeInMB = new Blob([cached]).size / (1024 * 1024);
+    const age = timestamp ? Date.now() - parseInt(timestamp) : 0;
+    const ageInHours = (age / (1000 * 60 * 60)).toFixed(1);
+
+    return {
+      sizeInMB: sizeInMB.toFixed(2),
+      ageInHours,
+      isExpired: age > this.MAX_CACHE_AGE
+    };
+  }
+};
+
 
 // ==================== END RAG UTILITIES ====================
 
@@ -846,11 +967,13 @@ const UploadPage = ({ navigate }) => {
           errors: data.errors
         });
         localStorage.setItem('cv_data', JSON.stringify(data.jsonCv));
-        localStorage.removeItem('vector_db_cache');
+        // Clear vector DB cache - will rebuild with new data
+        VectorDBStorage.clear();
         setTimeout(() => navigate('/dashboard'), 3000);
       } else {
         localStorage.setItem('cv_data', JSON.stringify(data.jsonCv));
-        localStorage.removeItem('vector_db_cache');
+        // Clear vector DB cache - will rebuild with new data
+        VectorDBStorage.clear();
         navigate('/dashboard');
       }
     } catch (err) {
@@ -1664,29 +1787,21 @@ const ChatAssistant = ({ cvData, onClose }) => {
 
   useEffect(() => {
     const initVectorDB = async () => {
-      if (cvData.length === 0) {
+      if (!cvData || cvData.length === 0) {
         setDbReady(true);
         return;
       }
 
-      const cachedDB = localStorage.getItem('vector_db_cache');
-      const cachedDataHash = localStorage.getItem('cv_data_hash');
-      const currentDataHash = JSON.stringify(cvData).length.toString();
-
-      if (cachedDB && cachedDataHash === currentDataHash) {
-        try {
-          const parsed = JSON.parse(cachedDB);
-          if (parsed.length > 0 && parsed[0].embedding) {
-            setVectorDB(parsed);
-            setDbReady(true);
-            console.log('Loaded vector DB from cache');
-            return;
-          }
-        } catch (e) {
-          console.log('Cache invalid, rebuilding...');
-        }
+      // Try to load from cache using new storage manager
+      const cached = VectorDBStorage.load(cvData);
+      if (cached) {
+        setVectorDB(cached);
+        setDbReady(true);
+        return;
       }
 
+      // Build new vector DB
+      console.log('Building new vector DB...');
       setBuildingDB(true);
       setDbProgress(0);
 
@@ -1698,15 +1813,20 @@ const ChatAssistant = ({ cvData, onClose }) => {
           setDbProgress(Math.round(progress));
         });
 
+        if (db.length === 0) {
+          throw new Error('No embeddings were created');
+        }
+
         setVectorDB(db);
-        localStorage.setItem('vector_db_cache', JSON.stringify(db));
-        localStorage.setItem('cv_data_hash', currentDataHash);
+
+        // Save to cache using new storage manager
+        VectorDBStorage.save(db, cvData);
 
         console.log(`Vector DB built with ${db.length} entries`);
         setDbReady(true);
       } catch (error) {
         console.error('Error building vector DB:', error);
-        setDbReady(true);
+        setDbReady(true); // Still mark as ready, will work without RAG
       } finally {
         setBuildingDB(false);
       }
@@ -1734,7 +1854,7 @@ const ChatAssistant = ({ cvData, onClose }) => {
 
       if (vectorDB.length > 0) {
         console.log('Searching for relevant candidates...');
-        const similarChunks = await searchSimilarChunks(query, vectorDB, GEMINI_API_KEY, 3);
+        const similarChunks = await searchSimilarChunks(query, vectorDB, GEMINI_API_KEY, 10);
 
         if (similarChunks.length > 0) {
           retrievedCandidates = similarChunks.map(chunk => ({
@@ -1757,29 +1877,23 @@ ${chunk.fullData}
       const systemPrompt = `You are **CVAlyze**, an intelligent HR analysis assistant that helps recruiters, employers, and analysts evaluate candidates.
 
 ${relevantContext ? `
-I have retrieved the TOP 3 MOST RELEVANT candidates based on semantic search of the user's query. Focus your analysis primarily on these candidates:
+Below are the most relevant candidate profiles for the user's current question.
+Use this information as the primary context for your analysis:
 
 ${relevantContext}
-
-IMPORTANT: The candidates above were retrieved using semantic similarity matching. Prioritize information from these candidates when answering the user's query.
 ` : ''}
 
-${cvData.length > 0 ? `
-For reference, here's a summary of ALL candidates available:
-Total Candidates: ${cvData.length}
-Professions: ${[...new Set(cvData.map(cv => cv.profession))].join(', ')}
-Countries: ${[...new Set(cvData.map(cv => cv.country))].join(', ')}
-` : 'No candidate data available.'}
+Your role and behavior:
+1. Base your answers strictly on the candidate information provided above.
+2. When recommending or comparing candidates, clearly explain *why* they are suitable (skills, experience, role fit).
+3. If the available candidates do not sufficiently match the user's request, say so clearly and suggest how the query could be refined.
+4. Do not assume or invent any candidate details beyond what is provided.
+5. For non-candidate or casual questions, respond naturally and helpfully.
+6. Keep responses concise, professional, and actionable.
+7. Format responses in clear markdown for readability.
+8. Do not mention internal processes, data selection methods, or how candidates were chosen.
+`;
 
-Your behavior rules:
-1. When the user asks about specific skills, qualifications, or candidate recommendations, focus on the RETRIEVED RELEVANT CANDIDATES shown above.
-2. If the retrieved candidates don't match the user's needs, mention this and suggest what the user might want to search for instead.
-3. For casual/unrelated queries, respond naturally without forcing candidate data into the conversation.
-4. Keep responses concise and actionable - like a helpful colleague.
-5. Always indicate which candidates you're discussing and why they're relevant.
-6. Never fabricate candidate data.
-7. Format responses in markdown for better readability.
-8. If RAG retrieved candidates, briefly mention that these are the top matches found.`;
 
       const limitedMessages = messages.slice(1).slice(-4);
 
@@ -1806,11 +1920,6 @@ Your behavior rules:
 
       let aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || data?.output_text || "Sorry, I couldn't process that.";
 
-      if (retrievedCandidates.length > 0) {
-        const retrievalNote = `\n\n---\n *Retrieved ${retrievedCandidates.length} relevant candidates: ${retrievedCandidates.map(c => `${c.name} (${c.similarity}%)`).join(', ')}*`;
-        aiResponse += retrievalNote;
-      }
-
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
     } catch (error) {
       console.error("Chat Error:", error);
@@ -1828,12 +1937,13 @@ Your behavior rules:
   };
 
   const handleClearChat = () => {
-    setMessages([{ role: 'assistant', content: "Hey, I am Analysis Assistant powered by RAG! 🚀 I can find the most relevant candidates for your queries. How can I help you?" }]);
+    setMessages([{ role: 'assistant', content: "Hey, I am Analysis Assistant. I can find the most relevant candidates for your queries. How can I help you?" }]);
   };
 
   const handleRebuildDB = async () => {
-    localStorage.removeItem('vector_db_cache');
-    localStorage.removeItem('cv_data_hash');
+    // Clear cache using storage manager
+    VectorDBStorage.clear();
+    setVectorDB([]);
     setDbReady(false);
     setBuildingDB(true);
     setDbProgress(0);
@@ -1843,10 +1953,19 @@ Your behavior rules:
       const db = await buildVectorDB(chunks, GEMINI_API_KEY, (progress) => {
         setDbProgress(Math.round(progress));
       });
+
       setVectorDB(db);
-      localStorage.setItem('vector_db_cache', JSON.stringify(db));
-      localStorage.setItem('cv_data_hash', JSON.stringify(cvData).length.toString());
+
+      // Save using storage manager
+      VectorDBStorage.save(db, cvData);
+
       setDbReady(true);
+
+      // Notify user
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'RAG index rebuilt successfully! I can now search your candidates more accurately.'
+      }]);
     } catch (error) {
       console.error('Error rebuilding vector DB:', error);
       setDbReady(true);
@@ -1932,11 +2051,8 @@ Your behavior rules:
 
         <div className="p-3 md:p-4 border-t border-blue-200 bg-white">
           <div className="mb-2 md:mb-3 space-y-2">
-            <button onClick={() => sendMessage('Find candidates with Python and Machine Learning skills')} disabled={loading || !dbReady} className="w-full px-3 md:px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-blue-900 text-xs md:text-sm hover:bg-blue-200 transition-all text-left disabled:opacity-50">
-              🔍 Find candidates with Python and Machine Learning skills
-            </button>
-            <button onClick={() => sendMessage('Top 3 candidates for a senior developer role')} disabled={loading || !dbReady} className="w-full px-3 md:px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-blue-900 text-xs md:text-sm hover:bg-blue-200 transition-all text-left disabled:opacity-50">
-              💡 Top 3 candidates for a senior developer role
+            <button onClick={() => sendMessage('Top 5 candidates for a AI/ML Engineering')} disabled={loading || !dbReady} className="w-full px-3 md:px-4 py-2 bg-blue-100 border border-blue-300 rounded-lg text-blue-900 text-xs md:text-sm hover:bg-blue-200 transition-all text-left disabled:opacity-50">
+              💡 Top 5 candidates for a AI/ML Engineering
             </button>
           </div>
           <div className="flex space-x-2">
@@ -2037,9 +2153,15 @@ const SettingsPage = ({ navigate }) => {
   };
 
   const handleClearRAGCache = () => {
-    localStorage.removeItem('vector_db_cache');
-    localStorage.removeItem('cv_data_hash');
-    setMessage('RAG cache cleared successfully! It will rebuild on next chat open.');
+    VectorDBStorage.clear();
+
+    // Show cache info before clearing
+    const info = VectorDBStorage.getInfo();
+    if (info) {
+      setMessage(`RAG cache cleared! (Was ${info.sizeInMB} MB, ${info.ageInHours} hours old). It will rebuild on next chat open.`);
+    } else {
+      setMessage('RAG cache was already empty. It will build when you open the chat.');
+    }
   };
 
   return (
