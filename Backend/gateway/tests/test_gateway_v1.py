@@ -3,8 +3,8 @@ import sys
 import os
 import time
 import pytest
+from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
-from fastapi_limiter import FastAPILimiter
 from jose import jwt
 from dotenv import load_dotenv
 
@@ -13,54 +13,27 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from app.main import app
 
-# -------------------- Disable Rate Limiter in CI --------------------
+# -------------------- Mock Redis for Rate Limiter --------------------
 @pytest.fixture(autouse=True)
-def mock_rate_limiter(monkeypatch):
+def mock_redis_rate_limiter():
     """
-    Fully mock FastAPILimiter for unit tests — bypass Redis and rate limits.
-    Prevents 'You must call FastAPILimiter.init' and 'evalsha' errors.
+    Mock Redis connection for the custom rate limiter in app.state.redis.
+    This bypasses actual Redis calls during testing.
     """
-    # Pretend limiter is initialized
-    monkeypatch.setattr(FastAPILimiter, "init", lambda *a, **kw: None)
-    monkeypatch.setattr(FastAPILimiter, "close", lambda *a, **kw: None)
-
-    # Mock Redis-like async client
-    class MockRedis:
-        def __init__(self):
-            self.storage = {}
-            self.expiry = {}
-
-        async def incr(self, key):
-            self.storage[key] = self.storage.get(key, 0) + 1
-            return self.storage[key]
-
-        async def expire(self, key, seconds):
-            # Ignore TTL timer (not needed in tests)
-            self.expiry[key] = seconds
-            return True
-
-        async def evalsha(self, *args, **kwargs):
-            return None
-
-    mock_redis = MockRedis()
-    monkeypatch.setattr(FastAPILimiter, "redis", mock_redis)
-
-
-    # Async identifier
-    async def mock_identifier(request):
-        return "test-user"
-
-    # Async callback
-    async def mock_http_callback(request, response, pexpire):
-        return None
-
-    monkeypatch.setattr(FastAPILimiter, "identifier", mock_identifier)
-    monkeypatch.setattr(FastAPILimiter, "http_callback", mock_http_callback)
-
-    # Disable RateLimiter dependency entirely
-    monkeypatch.setattr(FastAPILimiter, "__call__", lambda *a, **kw: None)
-
-    yield
+    # Create a mock Redis client
+    mock_redis = MagicMock()
+    mock_redis.incr = AsyncMock(return_value=1)  # Always return count of 1 (under limit)
+    mock_redis.expire = AsyncMock(return_value=True)
+    mock_redis.ping = AsyncMock(return_value=True)
+    mock_redis.aclose = AsyncMock(return_value=None)
+    
+    # Inject mock Redis into app state
+    app.state.redis = mock_redis
+    
+    yield mock_redis
+    
+    # Cleanup
+    app.state.redis = None
 
 
 # -------------------- Load Env and Setup JWT --------------------
@@ -81,7 +54,7 @@ client = TestClient(app)
 
 
 # -------------------- Tests --------------------
-@pytest.mark.parametrize("path", ["/", "/api/v1/"])
+@pytest.mark.parametrize("path", ["/api/v1/"])
 def test_root_endpoints(path):
     """Test root endpoints for Gateway service."""
     response = client.get(path, headers=auth_headers)
@@ -104,3 +77,36 @@ def test_openapi_docs():
     response = client.get("/docs")
     assert response.status_code == 200
     assert "<title>FastAPI</title>" in response.text or "swagger-ui" in response.text
+
+
+def test_health_check():
+    """Test health check endpoint."""
+    response = client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+
+
+def test_metrics_endpoint():
+    """Test Prometheus metrics endpoint."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+
+
+def test_blocked_path():
+    """Test that non-whitelisted paths are blocked."""
+    response = client.get("/api/v1/nonexistent", headers=auth_headers)
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Not found"
+
+
+def test_unauthorized_access():
+    """Test that protected endpoints require authentication."""
+    response = client.post("/api/v1/upload_cvs", files={})
+    assert response.status_code == 401
+
+
+def test_invalid_token():
+    """Test that invalid tokens are rejected."""
+    bad_headers = {"Authorization": "Bearer invalid_token_here"}
+    response = client.post("/api/v1/upload_cvs", files={}, headers=bad_headers)
+    assert response.status_code == 401
